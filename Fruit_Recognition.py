@@ -9,7 +9,19 @@ import cv2
 import numpy as np
 #import sys
 
-image = cv2.imread('Banaan1.png')
+# Print pixel color and set pixel color to red
+# variable x: x-coordinate
+# variable y: y-coordinate
+# variable thickness: thickness of square
+def printcolor(x, y, thickness):
+    print(image[y,x])
+    red_color = (0,0,255) # color (Blue, Green, Red)
+
+    # Draw a rectangle around the pixel (fill)
+    cv2.rectangle(image, (x, y), (x + thickness - 1, y + thickness - 1), red_color, -1)
+    image[y,x] = red_color
+
+image = cv2.imread('Banaantros1.png')
 # Convert the image to grayscale
 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 _, binary_image = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
@@ -37,8 +49,8 @@ hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 #lower_yellow = np.array([10, 50, 70])  # Example lower threshold for yellow
 #upper_yellow = np.array([30, 255, 255])  # Example upper threshold for yellow
 
-lower_yellow = np.array([10, 40, 50])  # Example lower threshold for yellow
-upper_yellow = np.array([30, 255, 255])  # Example upper threshold for yellow
+lower_yellow = np.array([10, 40, 50])  # Example lower threshold for yellow (B,G,R)
+upper_yellow = np.array([30, 255, 255])  # Example upper threshold for yellow (B,G,R)
 yellow_mask = cv2.inRange(hsv_image, lower_yellow, upper_yellow)
 segmented_image = cv2.bitwise_and(image, image, mask=yellow_mask)
 binary_image = cv2.bitwise_and(binary_image, binary_image, mask=yellow_mask)
@@ -59,8 +71,9 @@ for contour in contours:
     x, y, w, h = cv2.boundingRect(contour)
     
     # Draw the bounding box on the image
-    cv2.rectangle(image, (x, y), (x+w, y+h), (0, 255, 0), 2)
+    #cv2.rectangle(image, (x, y), (x+w, y+h), (0, 255, 0), 2)
 #print(filtered_contours)
+
 
 
 """
@@ -95,13 +108,14 @@ for contour in contours:
         filtered_contours.append(contour)
 """
 
+# Code to draw a few pixels
+# Set the thickness of the pixel (in pixels)
+thickness = 5
+printcolor(80, 370, thickness) # x = 80, y = 370
+printcolor(310, 320, thickness) # x = 310, y = 320
+
 cv2.imshow("Display window", image)
 #cv2.imshow("yellow mask", yellow_mask)
-
-
-
-
-
 
 # Press backspace to clear all windows
 cv2.waitKey(0)
