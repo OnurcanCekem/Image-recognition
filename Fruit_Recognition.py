@@ -38,7 +38,7 @@ fontColor              = (255,255,255)
 thickness              = 2
 lineType               = 1
 
-image = cv2.imread('Banaan1.png')
+image = cv2.imread('Banaantros1.png')
 
 
 
@@ -80,9 +80,11 @@ cv2.imshow("segmented_image", segmented_image)
 
 
 # Filter contours based on area
-min_area = 10  # Minimum area threshold
-max_area = 20000  # Maximum area threshold
 contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+# debug
+counter = 0
+
 # Iterate over the contours and draw bounding boxes around bananas
 for contour in contours:
     # Ignore small contours
@@ -91,11 +93,23 @@ for contour in contours:
     
     # Compute the bounding box coordinates
     x, y, w, h = cv2.boundingRect(contour)
-    
-    # Draw the bounding box on the image
-    cv2.rectangle(image, (x, y), (x+w, y+h), (0, 255, 0), 2)
-    drawtext(x,y-10,"Found!")
+
+    #Check ratio, if rectangle it's likely a banana (ratio is 2:1)
+    if (w*2 < h) or (h*2 < w):
+        # Draw the bounding box on the image
+        cv2.rectangle(image, (x, y), (x+w, y+h), (0, 255, 0), 2)
+        drawtext(x,y-10,"Found!")
+        binary_image[y:y+h, x:x+w] = (0) # clear already found bananas
+
+        # debug locations
+        counter +=1
+        print(counter, x, w, y, h)
+    else:
+        # fill found banana's with tuplet's color (50,250,50)
+        image[y:y+h, x:x+w] = (50,250,50)
+
 #print(filtered_contours)
+cv2.imshow("Binary image", binary_image)
 
 """
 filtered_contours = []
