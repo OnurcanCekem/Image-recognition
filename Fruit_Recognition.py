@@ -3,6 +3,7 @@
 Created on Mon Apr 24 14:30:31 2023
 
 @author: onurc
+Version: V0.5
 """
 
 import cv2
@@ -21,6 +22,10 @@ def printcolor(x, y, thickness):
     cv2.rectangle(image, (x, y), (x + thickness - 1, y + thickness - 1), red_color, -1)
     image[y,x] = red_color
 
+# Draw text in a position
+# variable x: x-coordinate
+# variable y: y-coordinate
+# variable text: Text to be drawn
 def drawtext(x, y, text):
     cv2.putText(image,text, 
     (x,y-10), 
@@ -50,6 +55,7 @@ _, binary_image = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
 
 #blur
 blur = cv2.GaussianBlur(image,(7,7),1)
+cv2.imshow("Blurred image", blur)
 
 #grayscale van blur
 grayblur = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
@@ -111,42 +117,6 @@ for contour in contours:
 #print(filtered_contours)
 cv2.imshow("Binary image", binary_image)
 
-"""
-filtered_contours = []
-for contour in contours:
-    area = cv2.contourArea(contour)
-    #if min_area <= area <= max_area:
-    cv2.drawContours(yellow_mask, contour, -1, (0,255,0), 3 )
-    peri = cv2.arcLength( contour, True)
-    rect = cv2.approxPolyDP( contour, 0.02 * peri, True )
-    print (len(rect))
-    x,y,w,h = cv2.boundingRect(rect)
-    cv2.rectangle(yellow_mask, (x, y), (x + w , y + h), (0, 255, 0), 3)
-    filtered_contours.append(contour)
-    cv2.putText(yellow_mask, "points: " + str(len(rect)), (x + w + 20, y + 20), cv2.FONT_HERSHEY_SIMPLEX, .7, (0, 255, 0), 2)
-    cv2.putText(yellow_mask, "area: " + str(int(area)), (x + w + 20, y + 45), cv2.FONT_HERSHEY_SIMPLEX, .7, (0, 255, 0), 2)
-
-
-
-# Contour
-binary_image = cv2.imread('Banaantros1.png', cv2.IMREAD_GRAYSCALE)
-contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-# Filter contours based on area
-min_area = 1000  # Minimum area threshold
-max_area = 10000  # Maximum area threshold
-
-filtered_contours = []
-for contour in contours:
-    area = cv2.contourArea(contour)
-    if min_area <= area <= max_area:
-        filtered_contours.append(contour)
-"""
-
-# Code to draw a few pixels
-# Set the thickness of the pixel (in pixels)
-#printcolor(80, 370, 5) # x = 80, y = 370, thickness = 5
-#printcolor(310, 320, 5) # x = 310, y = 320, thickness = 5
 
 cv2.imshow("Display window", image)
 #cv2.imshow("yellow mask", yellow_mask)
@@ -154,7 +124,3 @@ cv2.imshow("Display window", image)
 # Press backspace to clear all windows
 cv2.waitKey(0)
 cv2.destroyAllWindows() 
-
-
-#image2 = cv2.imread('Banaantros1.png')
-#cv2.imshow("Display window2", image2)
