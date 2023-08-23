@@ -3,7 +3,7 @@
 Created on Mon Apr 24 14:30:31 2023
 
 @author: onurc
-Version: V0.5
+Version: V0.6
 """
 
 import cv2
@@ -43,32 +43,25 @@ fontColor              = (255,255,255)
 thickness              = 2
 lineType               = 1
 
-image = cv2.imread('Banaantros1.png')
-
-
-
-
+image = cv2.imread('Banaan4.png') # read image
+frame_image = image.copy()
 
 # Convert the image to grayscale
 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 _, binary_image = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
 
-#blur
+# Blur
 blur = cv2.GaussianBlur(image,(7,7),1)
-cv2.imshow("Blurred image", blur)
+#cv2.imshow("Blurred image", blur)
 
-#grayscale van blur
+# Grayscale van blur
 grayblur = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
 
 
 imgContour = image.copy()
 contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-#cv2.imshow("HSV", hsv_image)
-
-# Original starting values
-#lower_yellow = np.array([20, 100, 100])  # Example lower threshold for yellow
-#upper_yellow = np.array([30, 255, 255])  # Example upper threshold for yellow
+cv2.imshow("HSV", hsv_image)
 
 # Values I want to keep
 #lower_yellow = np.array([10, 50, 70])  # Example lower threshold for yellow
@@ -82,7 +75,7 @@ upper_yellow = np.array([30, 255, 255])  # Example upper threshold for yellow (B
 yellow_mask = cv2.inRange(hsv_image, lower_yellow, upper_yellow)
 segmented_image = cv2.bitwise_and(image, image, mask=yellow_mask)
 binary_image = cv2.bitwise_and(binary_image, binary_image, mask=yellow_mask)
-cv2.imshow("segmented_image", segmented_image)
+cv2.imshow("segmented_image (color range)", segmented_image)
 
 
 # Filter contours based on area
@@ -99,26 +92,35 @@ for contour in contours:
     
     # Compute the bounding box coordinates
     x, y, w, h = cv2.boundingRect(contour)
+    #print(counter, x, w, y, h)
 
-    #Check ratio, if rectangle it's likely a banana (ratio is 2:1)
-    if (w*2 < h) or (h*2 < w):
+    # Check ratio, if rectangle it's likely a banana (ratio is 2:1)
+    if (w*1.3 < h) or (h*1.3 < w): # If banana is found (condition is met)
+        
         # Draw the bounding box on the image
         cv2.rectangle(image, (x, y), (x+w, y+h), (0, 255, 0), 2)
+
+        # Filter out the already found bananas from frame_image
+        inverted_binary = cv2.bitwise_not(binary_image)
+        frame_image = cv2.bitwise_and(frame_image, frame_image, mask=inverted_binary) 
         drawtext(x,y-10,"Found!")
-        binary_image[y:y+h, x:x+w] = (0) # clear already found bananas
+        
+        #binary_image[y:y+h, x:x+w] = (0) # clear already found bananas
 
         # debug locations
         counter +=1
         print(counter, x, w, y, h)
-    else:
-        # fill found banana's with tuplet's color (50,250,50)
+    else: # If banana is not found
+        # Fill the found square with tuplet's color to make sure it doesn't find it again (50,250,50)
         image[y:y+h, x:x+w] = (50,250,50)
 
 #print(filtered_contours)
 cv2.imshow("Binary image", binary_image)
 
 
-cv2.imshow("Display window", image)
+cv2.imshow("original image", image)
+cv2.imshow("frame image", frame_image)
+
 #cv2.imshow("yellow mask", yellow_mask)
 
 # Press backspace to clear all windows
