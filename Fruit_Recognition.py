@@ -3,7 +3,7 @@
 Created on Mon Apr 24 14:30:31 2023
 
 @author: onurc
-Version: V0.8
+Version: V0.9
 """
 
 import cv2
@@ -48,6 +48,12 @@ lineType               = 1
 image = cv2.imread('Banaan4_1.png') # read image
 frame_image = image.copy()
 
+# Dimensions 
+dimensions = image.shape # Grab dimensions. (dimension[0] = y, dimensions[1] = x, dimensions[2] = color dimensions, example 3 for RGB)
+percentage_area = 0.10 # How much % of the image should be the banana (1 is 100%)
+area = dimensions[0]*dimensions[1]*percentage_area
+print("Area:", area) # debug
+
 # Blur
 blur = cv2.GaussianBlur(image,(7,7),1)
 bilateral = cv2.bilateralFilter(image,9,75,75)
@@ -72,9 +78,15 @@ hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 h,s,v = cv2.split(hsv_image)
 hsv_split = np.concatenate((h,s,v),axis=1)
 
-sat_mask = cv2.inRange(s,30,255)
+# Saturation
+sat_mask = cv2.inRange(s,70,255)
 s = cv2.bitwise_and(s, s, mask=sat_mask)
-#cv2.imshow("Saturation", s)
+blur_s = cv2.GaussianBlur(s,(7,7),1)
+bilateral_s = cv2.bilateralFilter(s,9,75,75)
+gray_s = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+canny_s = cv2.Canny(bilateral_s, threshold1, threshold2)
+cv2.imshow("Canny Sat", canny_s)
+cv2.imshow("s", v)
 
 # Contour
 imgContour = image.copy()
@@ -118,7 +130,8 @@ counter = 0
 for contour in contours:
 
     # Ignore small contours
-    if cv2.contourArea(contour) < 4000:
+   #if cv2.contourArea(contour) < 4000:
+    if cv2.contourArea(contour) < area:
         continue
     
     # Compute the bounding box coordinates
@@ -149,10 +162,6 @@ for contour in contours:
         inverted_binary = cv2.bitwise_not(binary_image_combined)
         frame_image = cv2.bitwise_and(frame_image, frame_image, mask=inverted_binary) 
         
-        # Draw the contour on the original image
-        cv2.drawContours(image, [contour], 0, (0, 255, 0), 2)
-        #binary_image[y:y+h, x:x+w] = (0) # clear already found bananas
-
         # debug locations
         counter +=1
         print(counter, x, w, y, h)
@@ -164,8 +173,15 @@ for contour in contours:
             print("Phase 3")
         elif brown_percentage > 8:
             print("Phase 2")
+        elif brown_percentage < 2:
+            print("Not a banana.")
+            continue
         else:
             print("Phase 1")
+
+        # Draw the contour on the original image
+        cv2.drawContours(image, [contour], 0, (0, 255, 0), 2)
+        #binary_image[y:y+h, x:x+w] = (0) # clear already found bananas
 
         # Display the brown percentage
         font = cv2.FONT_HERSHEY_SIMPLEX
@@ -173,6 +189,7 @@ for contour in contours:
         drawtext(x,y+20, f"{brown_percentage:.2f}% brown", 0.5) # Text brown percentage
         drawtext(x,y+40, f"{w/h:.2f}:1 width:height ratio", 0.5) # Text width:height ratio
         drawtext(x,y-10,"Found banana!") # Text banana is found
+
     #else: # If banana is not found
         # Fill the found square with tuplet's color to make sure it doesn't find it again (50,250,50)
         #frame_image[y:y+h, x:x+w] = (50,250,50)
