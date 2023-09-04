@@ -49,9 +49,11 @@ image = cv2.imread('Banaan4_1.png') # read image
 frame_image = image.copy()
 
 # Dimensions 
-dimensions = image.shape # Grab dimensions. (dimension[0] = y, dimensions[1] = x, dimensions[2] = color dimensions, example 3 for RGB)
-percentage_area = 0.10 # How much % of the image should be the banana (1 is 100%)
-area = dimensions[0]*dimensions[1]*percentage_area
+# height, width, number of channels in image
+height = image.shape[0] # y
+width = image.shape[1] # x
+percentage_area = 0.10 # How much % of the image should be the banana (1.00 is 100%)
+area = height*width*percentage_area # Amount of pixels required for area to identify banana
 print("Area:", area) # debug
 
 # Blur
@@ -122,7 +124,7 @@ color_dil = cv2.dilate(color_image,kernel,1)
 binary_image_combined = cv2.dilate(binary_image_combined,kernel,1)
 
 # Filter contours based on area
-contours, _ = cv2.findContours(binary_image_combined, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+contours, _ = cv2.findContours(canny_s, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
 # debug
 counter = 0
