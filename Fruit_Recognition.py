@@ -3,12 +3,15 @@
 Created on Mon Apr 24 14:30:31 2023
 
 @author: onurc
-Version: V0.9
+Version: V0.10
 """
 
 import cv2
 import numpy as np
 #import sys
+from matplotlib import pyplot as plt
+import os
+
 
 # Print pixel color and set pixel color to red
 # variable x: x-coordinate
@@ -21,6 +24,41 @@ def printcolor(x, y, thickness):
     # Draw a rectangle around the pixel (fill)
     cv2.rectangle(image, (x, y), (x + thickness - 1, y + thickness - 1), red_color, -1)
     image[y,x] = red_color
+
+# Concatenate images with a scale
+# variable img1: first image input
+# variable img2: second image input
+# variable img3: third image input
+# variable scale: Scale the image
+# variable name: Name of the end result of the image
+def concatenate(img1, img2, img3, scale, name):
+    combined_image = np.concatenate((img1,img2,img3),axis=1)
+    
+    # Scale the image. 
+    # This is not used for function, but rather vanity (I wanted to make a better screenshot for the essay). 
+    scale_percent = scale # percent of original size
+    width = int(img1.shape[1] * scale_percent / 34)
+    height = int(img1.shape[0] * scale_percent / 100)
+    dim = (width, height) # Dimensions
+
+    # resize image
+    resized_color = cv2.resize(combined_image, dim, interpolation = cv2.INTER_AREA) # HSV split, seperately and resized
+    cv2.imshow(name, resized_color)
+
+
+# Resize image
+# variable img: image input
+# variable scale: Scale the image
+# variable name: Name of the end result of the image
+def resize_image(img, scale, name):
+        
+    # Grab dimensions and scale the image. 
+    width = int(img.shape[1] * scale / 100)
+    height = int(img.shape[0] * scale / 100)
+    dim = (width, height) # Dimensions
+    # resize image
+    resized = cv2.resize(img, dim, interpolation = cv2.INTER_AREA) # HSV split, seperately and resized
+    cv2.imshow(name,resized)
 
 # Draw text in a position
 # variable x: x-coordinate
@@ -45,7 +83,7 @@ lineType               = 1
 
 
 # Read the image
-image = cv2.imread('Banaan4_1.png') # read image
+image = cv2.imread('Banaan4_2.jpg') # read image
 frame_image = image.copy()
 
 # Dimensions 
@@ -54,7 +92,7 @@ height = image.shape[0] # y
 width = image.shape[1] # x
 percentage_area = 0.10 # How much % of the image should be the banana (1.00 is 100%)
 area = height*width*percentage_area # Amount of pixels required for area to identify banana
-print("Area:", area) # debug
+#print("Area:", area) # debug
 
 # Blur
 blur = cv2.GaussianBlur(image,(7,7),1)
@@ -87,8 +125,8 @@ blur_s = cv2.GaussianBlur(s,(7,7),1)
 bilateral_s = cv2.bilateralFilter(s,9,75,75)
 gray_s = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 canny_s = cv2.Canny(bilateral_s, threshold1, threshold2)
-cv2.imshow("Canny Sat", canny_s)
-cv2.imshow("s", v)
+#cv2.imshow("Canny Sat", canny_s)
+cv2.imshow("s", s)
 
 # Contour
 imgContour = image.copy()
@@ -97,15 +135,21 @@ contours, _ = cv2.findContours(sat_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIM
 # Color threshold
 #lower_yellow = np.array([10, 50, 70])  # Example lower threshold for yellow
 #upper_yellow = np.array([30, 255, 255])  # Example upper threshold for yellow
-lower_yellow = np.array([20, 50, 70])  # lower threshold for yellow (example: [10, 50, 70])
+lower_yellow = np.array([10, 50, 70])  # lower threshold for yellow (example: [10, 50, 70])
 upper_yellow = np.array([30, 255, 255])  # upper threshold for yellow (example:  [30, 255, 255])
 lower_brown = np.array([0, 70, 0])  # lower threshold for brown (example: [10, 100, 20])
 upper_brown = np.array([20, 255, 200])  # upper threshold for brown (example: [20, 255, 200])
-
+lower = np.array([22, 93, 0])
+upper = np.array([45, 255, 255])
 # Yellow mask (Filter with color range)
 yellow_mask = cv2.inRange(hsv_image, lower_yellow, upper_yellow) # Create mask
 segmented_image_yellow = cv2.bitwise_and(image, image, mask=yellow_mask) # Apply yellow mask on original image
 binary_image_yellow = cv2.bitwise_and(binary_image_yellow, binary_image_yellow, mask=yellow_mask) # Apply mask on binary image
+
+# Yellow mask (Filter with color range)
+yellow_mask2 = cv2.inRange(hsv_image, lower, upper) # Create mask
+segmented_image_yellow2 = cv2.bitwise_and(image, image, mask=yellow_mask2) # Apply yellow mask on original image
+binary_image_yellow2 = cv2.bitwise_and(binary_image_yellow, binary_image_yellow, mask=yellow_mask2) # Apply mask on binary image
 
 # Brown mask (Filter with color range)
 brown_mask = cv2.inRange(hsv_image, lower_brown, upper_brown) # Create mask
@@ -125,6 +169,34 @@ binary_image_combined = cv2.dilate(binary_image_combined,kernel,1)
 
 # Filter contours based on area
 contours, _ = cv2.findContours(canny_s, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+
+"""
+# Orb detector
+
+# Initiate ORB detector
+orb = cv2.ORB_create()
+
+# find the keypoints with ORB
+kp = orb.detect(gray,None)
+
+# compute the descriptors with ORB
+kp, des = orb.compute(image, kp)
+
+# draw only keypoints location,not size and orientation
+img2 = cv2.drawKeypoints(image, kp, None, color=(0,255,0), flags=0)
+plt.imshow(img2), plt.show()
+
+
+keypoints_list = []
+descriptors_list = []
+
+for image in dataset:
+    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    keypoints, descriptors = orb.detectAndCompute(gray_image, None)
+    keypoints_list.append(keypoints)
+    descriptors_list.append(descriptors)
+"""
 
 # debug
 counter = 0
@@ -212,7 +284,25 @@ cv2.imshow("original image", image)
 #cv2.imshow("color (yellow and brown) dilated", color_dil)
 #cv2.imshow("color (yellow and brown)", color_image)
 #cv2.imshow("Canny", canny)
+resize_image(image, 50, "original")
+resize_image(segmented_image_yellow, 50, "Tweaked yellow filter")
+resize_image(segmented_image_yellow2, 50, "Original yellow filter")
+#resize_image(color_image, 50, "Color combined")
 
+
+color_split = np.concatenate((segmented_image_yellow2,segmented_image_yellow,image),axis=1)
+# Scale the image. 
+# This is not used for function, but rather vanity (I wanted to make a better screenshot for the essay). 
+scale_percent = 60 # percent of original size
+width = int(image.shape[1] * scale_percent / 34)
+height = int(image.shape[0] * scale_percent / 100)
+dim = (width, height) # Dimensions
+
+# resize image
+resized_color = cv2.resize(color_split, dim, interpolation = cv2.INTER_AREA) # HSV split, seperately and resized
+cv2.imshow("Color", resized_color)
+
+#concatenate(segmented_image_yellow, segmented_image_brown, color_image, 60, "Coooool")
 # Press backspace to clear all windows
 cv2.waitKey(0)
 cv2.destroyAllWindows() 
