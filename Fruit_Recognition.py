@@ -3,7 +3,7 @@
 Created on Mon Apr 24 14:30:31 2023
 
 @author: onurc
-Version: V0.10
+Version: V0.11
 """
 
 import cv2
@@ -47,10 +47,10 @@ def concatenate(img1, img2, img3, scale, name):
 
 
 # Resize image
-# variable img: image input
-# variable scale: Scale the image
 # variable name: Name of the end result of the image
-def resize_image(img, scale, name):
+# variable scale: Scale the image
+# variable img: image input
+def resize_image(name, scale, img):
         
     # Grab dimensions and scale the image. 
     width = int(img.shape[1] * scale / 100)
@@ -118,15 +118,13 @@ hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 h,s,v = cv2.split(hsv_image)
 hsv_split = np.concatenate((h,s,v),axis=1)
 
-# Saturation
+# Saturation and filters alongside saturation
 sat_mask = cv2.inRange(s,70,255)
 s = cv2.bitwise_and(s, s, mask=sat_mask)
 blur_s = cv2.GaussianBlur(s,(7,7),1)
 bilateral_s = cv2.bilateralFilter(s,9,75,75)
 gray_s = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 canny_s = cv2.Canny(bilateral_s, threshold1, threshold2)
-#cv2.imshow("Canny Sat", canny_s)
-cv2.imshow("s", s)
 
 # Contour
 imgContour = image.copy()
@@ -135,18 +133,28 @@ contours, _ = cv2.findContours(sat_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIM
 # Color threshold
 #lower_yellow = np.array([10, 50, 70])  # Example lower threshold for yellow
 #upper_yellow = np.array([30, 255, 255])  # Example upper threshold for yellow
-lower_yellow = np.array([10, 50, 70])  # lower threshold for yellow (example: [10, 50, 70])
+lower_yellow = np.array([20, 50, 70])  # lower threshold for yellow (example: [10, 50, 70])
 upper_yellow = np.array([30, 255, 255])  # upper threshold for yellow (example:  [30, 255, 255])
 lower_brown = np.array([0, 70, 0])  # lower threshold for brown (example: [10, 100, 20])
 upper_brown = np.array([20, 255, 200])  # upper threshold for brown (example: [20, 255, 200])
 lower = np.array([22, 93, 0])
 upper = np.array([45, 255, 255])
+
+# Gamma / Brightness
+alpha = 1.5 # Contrast threshold
+beta = 20 # Brightness threshold
+bright_image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta) # Create brightness image
+hsv_image_bright = cv2.cvtColor(bright_image, cv2.COLOR_BGR2HSV) # Bright HSV
+h_bright,s_bright,v_bright = cv2.split(hsv_image_bright)
+s_bright = cv2.bitwise_and(s_bright, s_bright, mask=sat_mask)
+hsv_split_bright = np.concatenate((h_bright,s_bright,v_bright),axis=1)
+
 # Yellow mask (Filter with color range)
 yellow_mask = cv2.inRange(hsv_image, lower_yellow, upper_yellow) # Create mask
 segmented_image_yellow = cv2.bitwise_and(image, image, mask=yellow_mask) # Apply yellow mask on original image
 binary_image_yellow = cv2.bitwise_and(binary_image_yellow, binary_image_yellow, mask=yellow_mask) # Apply mask on binary image
 
-# Yellow mask (Filter with color range)
+# Yellow mask for old filter found on internet (Filter with color range)
 yellow_mask2 = cv2.inRange(hsv_image, lower, upper) # Create mask
 segmented_image_yellow2 = cv2.bitwise_and(image, image, mask=yellow_mask2) # Apply yellow mask on original image
 binary_image_yellow2 = cv2.bitwise_and(binary_image_yellow, binary_image_yellow, mask=yellow_mask2) # Apply mask on binary image
@@ -168,8 +176,7 @@ color_dil = cv2.dilate(color_image,kernel,1)
 binary_image_combined = cv2.dilate(binary_image_combined,kernel,1)
 
 # Filter contours based on area
-contours, _ = cv2.findContours(canny_s, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
+contours, _ = cv2.findContours(sat_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
 """
 # Orb detector
@@ -213,7 +220,7 @@ for contour in contours:
     #print(counter, x, w, y, h)
 
     # Check ratio, if rectangle it's likely a banana (ratio is roughly 2:1 but depends on image dimensions)
-    if (w*1.5 < h) or (h*1.5 < w): # If banana is found (condition is met)
+    if (w*1.2 < h) or (h*1.2 < w): # If banana is found (condition is met)
         counter2 = 0
         
         # Calculate the area of the contour
@@ -263,44 +270,43 @@ for contour in contours:
         drawtext(x,y+20, f"{brown_percentage:.2f}% brown", 0.5) # Text brown percentage
         drawtext(x,y+40, f"{w/h:.2f}:1 width:height ratio", 0.5) # Text width:height ratio
         drawtext(x,y-10,"Found banana!") # Text banana is found
+        print("drawn")
 
     #else: # If banana is not found
         # Fill the found square with tuplet's color to make sure it doesn't find it again (50,250,50)
         #frame_image[y:y+h, x:x+w] = (50,250,50)
 
-# A list of possible images
-#print(filtered_contours)
-cv2.imshow("original image", image)
-#cv2.imshow("frame image (copy of original)", frame_image)
-#cv2.imshow("gray", gray)
-#cv2.imshow("HSV", hsv_image)
-#cv2.imshow("Binary image", binary_image)
-#cv2.imshow("Binary Combined", binary_image_combined)
-#cv2.imshow("yellow mask", yellow_mask)
-#cv2.imshow("yellow dil image", yellow_dil)
-#cv2.imshow("brown mask", brown_mask)
-#cv2.imshow("yellow (color range)", segmented_image_yellow)
-#cv2.imshow("brown (color range)", segmented_image_brown)
-#cv2.imshow("color (yellow and brown) dilated", color_dil)
-#cv2.imshow("color (yellow and brown)", color_image)
-#cv2.imshow("Canny", canny)
-resize_image(image, 50, "original")
-resize_image(segmented_image_yellow, 50, "Tweaked yellow filter")
-resize_image(segmented_image_yellow2, 50, "Original yellow filter")
-#resize_image(color_image, 50, "Color combined")
-
-
-color_split = np.concatenate((segmented_image_yellow2,segmented_image_yellow,image),axis=1)
 # Scale the image. 
 # This is not used for function, but rather vanity (I wanted to make a better screenshot for the essay). 
-scale_percent = 60 # percent of original size
+scale_percent = 50 # percent of original size
 width = int(image.shape[1] * scale_percent / 34)
 height = int(image.shape[0] * scale_percent / 100)
 dim = (width, height) # Dimensions
 
+# A list of possible images
+#print(filtered_contours)
+#cv2.imshow("original image", image) 
+resize_image("HSV", 50, hsv_split)
+#cv2.imshow("Binary Combined", binary_image_combined)
+resize_image("original", 50, image)
+resize_image("bright image", 50, bright_image) 
+#resize_image("Tweaked yellow filter", 50, segmented_image_yellow)
+#cv2.imshow("brown (color range)", segmented_image_brown)
+#resize_image("Original yellow filter", 50, segmented_image_yellow2)
+#resize_image("Color combined", 50, color_image)
+resize_image("HSV_bright", 50, hsv_split_bright)
+resize_image("V_bright", 50, v_bright)
+resize_image("V", 50, v)
+#resize_image("bright", 50, bright_image)
+#resize_image("s_bright", 50, s_bright)
+#resize_image("Brightness", 50, yeet)
+
+
+color_split = np.concatenate((segmented_image_yellow2,segmented_image_yellow,image),axis=1)
+
 # resize image
 resized_color = cv2.resize(color_split, dim, interpolation = cv2.INTER_AREA) # HSV split, seperately and resized
-cv2.imshow("Color", resized_color)
+#cv2.imshow("Color", resized_color)
 
 #concatenate(segmented_image_yellow, segmented_image_brown, color_image, 60, "Coooool")
 # Press backspace to clear all windows
