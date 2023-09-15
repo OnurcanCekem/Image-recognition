@@ -3,7 +3,7 @@
 Created on Mon Aug 16 12:30:31 2023
 
 @author: onurc
-Version: V0.2
+Version: V0.3
 Description: Image manipulation in the form of blurring, eroding and dilating images.
 Outputs all the blur, eroding and dilating filters.
 """
@@ -11,6 +11,20 @@ Outputs all the blur, eroding and dilating filters.
 import cv2
 import numpy as np
 import copy
+
+# Resize image
+# variable name: Name of the end result of the image
+# variable scale: Scale the image
+# variable img: image input
+def resize_image(name, scale, img):
+        
+    # Grab dimensions and scale the image. 
+    width = int(img.shape[1] * scale / 100)
+    height = int(img.shape[0] * scale / 100)
+    dim = (width, height) # Dimensions
+    # resize image
+    resized = cv2.resize(img, dim, interpolation = cv2.INTER_AREA) # HSV split, seperately and resized
+    cv2.imshow(name,resized)
 
 def empty(a):
     pass
@@ -23,12 +37,12 @@ cv2.createTrackbar("threshold2", "parameters", 50,255,empty)
 
 while(True):
     # Create variables
-    image = cv2.imread('Banaan4.png')
+    image = cv2.imread('Banaan3_1.jpg')
     copy_image = image.copy()
     threshold1 = cv2.getTrackbarPos("threshold1", "parameters")
     threshold2 = cv2.getTrackbarPos("threshold2", "parameters")
-    #threshold1 = 35
-    #threshold2 = 78
+    #threshold1 = 43  # (Used for image: 35)
+    #threshold2 = 104 # (Used for image: 78)
     
     # Blur
     blur = cv2.blur(image,(7,7))
@@ -53,6 +67,7 @@ while(True):
     cannymedian = cv2.Canny(median, threshold1, threshold2)
     cannybilateral = cv2.Canny(bilateral, threshold1, threshold2)
     kernel = np.ones([5,5])
+
     # Erosion
     #eroded_image = cv2.erode(binary_image, kernel, iterations=1)
     erode = cv2.erode(canny,kernel,1)
@@ -61,14 +76,28 @@ while(True):
     #dilated_image = cv2.dilate(binary_image, kernel, iterations=1)
     imdil = cv2.dilate(canny,kernel,1)
 
+    # Gamma / Brightness
+    alpha = 1.8 # Contrast threshold
+    beta = 20 # Brightness threshold
+    bright_image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta) # Create brightness image
+    bilateral_bright = cv2.bilateralFilter(bright_image,9,75,75)
+    gray_bright = cv2.cvtColor(bilateral_bright, cv2.COLOR_BGR2GRAY)
+    canny_bright = cv2.Canny(gray_bright, threshold1, threshold2)
+
     #cv2.imshow("Grayscale", gray)
     #cv2.imshow("Blur", blur)
     #cv2.imshow("Gaussian blur", gaussian)
     #cv2.imshow("Median blur", median)
-    cv2.imshow("Canny", canny)
-    cv2.imshow("Canny_gaussian", cannygaussian)
-    cv2.imshow("Canny_median", cannymedian)
-    cv2.imshow("Canny_bilateral", cannybilateral)
+    #cv2.imshow("Original", image)
+    #cv2.imshow("Canny", canny)
+    #cv2.imshow("Canny_Bright", canny_bright)
+    resize_image("Original", 50, image)
+    resize_image("Original Bright", 50, bright_image)
+    resize_image("Canny", 50, canny)
+    resize_image("Canny_Bright", 50, canny_bright)
+    #cv2.imshow("Canny_gaussian", cannygaussian)
+    #cv2.imshow("Canny_median", cannymedian)
+    #cv2.imshow("Canny_bilateral", cannybilateral)
     #cv2.imshow("dilate", imdil)
     #cv2.imshow("Erode", erode)
     #cv2.imshow("Image", copy_image)
