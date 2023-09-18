@@ -3,7 +3,7 @@
 Created on Mon Aug 16 12:30:31 2023
 
 @author: onurc
-Version: V0.4
+Version: V0.5
 Description: Image manipulation in the form of blurring, eroding and dilating images.
 Outputs all the blur, eroding and dilating filters.
 """
@@ -13,7 +13,7 @@ import numpy as np
 import copy
 from matplotlib import pyplot as plt
 
-# Resize image
+# Resize image. Designed to be similar as cv2.imshow()
 # variable name: Name of the end result of the image
 # variable scale: Scale the image
 # variable img: image input
@@ -27,6 +27,19 @@ def resize_image(name, scale, img):
     resized = cv2.resize(img, dim, interpolation = cv2.INTER_AREA) # HSV split, seperately and resized
     cv2.imshow(name,resized)
 
+# Function to resize and concatenate. Basically concatenate with some freedom
+# variable img: image input
+# variable img2: image input
+# variable name: Name of the end result of the image
+# variable w: Desired width
+# variable h: Desired height
+def resized_concat(img, img2, name, w, h):
+    
+    img = cv2.resize(img, (w, h))
+    img2 = cv2.resize(img2, (w, h))
+    combined_img = cv2.hconcat([img, img2])
+    cv2.imshow(name, combined_img)
+
 def empty(a):
     pass
 
@@ -37,11 +50,11 @@ cv2.createTrackbar("threshold2", "parameters", 50,255,empty)
 cv2.createTrackbar("threshold_tm", "parameters", 95,100,empty)
 #cv2.createTrackbar("area", "parameters", 5000, 90000, empty)
 
-# Template matching example
+# Template matching example, currently unused as it's a bit wonky.
 # All the 6 methods for comparison in a list
 # methods = ['cv.TM_CCOEFF', 'cv.TM_CCOEFF_NORMED', 'cv.TM_CCORR', 'cv.TM_CCORR_NORMED', 'cv.TM_SQDIFF', 'cv.TM_SQDIFF_NORMED']
-def template_matching():
-    template_image = cv2.imread('Banaan_template.jpg')
+def template_matching_example(image, template_image):
+    template_image = cv2.imread('Banaan_template3.jpg')
     threshold_tm = (cv2.getTrackbarPos("threshold_tm", "parameters")/100)
     template_gray = cv2.cvtColor(template_image, cv2.COLOR_BGR2GRAY)
     #result = cv2.matchTemplate(gray, template_gray, cv2.TM_CCOEFF_NORMED) # This one was the example, works at 0.6 threshold
@@ -54,34 +67,36 @@ def template_matching():
         cv2.rectangle(image, pt, (pt[0] + width, pt[1] + height), (0, 255, 0), 2)
     cv2.imshow('Detected Bananas', image)
 
+def template_matching(image, template_image):
+    # Template image attempt 2
+    # All the 6 methods for comparison in a list
+    # methods = ['cv.TM_CCOEFF', 'cv.TM_CCOEFF_NORMED', 'cv.TM_CCORR', 'cv.TM_CCORR_NORMED', 'cv.TM_SQDIFF', 'cv.TM_SQDIFF_NORMED']
+
+
+    # Apply template Matching
+    res = cv2.matchTemplate(image,template_image, cv2.TM_CCOEFF_NORMED) # Result, locate matches
+    
+    # Locate and grab dimensions
+    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res) 
+    top_left = max_loc
+    width = template_image.shape[1] # Grab dimensions
+    height = template_image.shape[0]
+    bottom_right = (top_left[0] + width, top_left[1] + height)
+    
+    # Draw rectangle
+    image = cv2.rectangle(image,top_left, bottom_right, 255, 3)
+    resized_concat(image, template_image, "Template matching: input (left) and template (right)", 550, 400)
 
 while(True):
     # Create variables
-    image = cv2.imread('Banaan3_11.jpg')
-    image2 = image.copy()
-    #template_matching()
+    image = cv2.imread('Banaan3_13.jpg')
+    template_image = cv2.imread('Banaan_template3_650x360.jpg')
     
-
-    # Template image attempt 2
-    template_image = cv2.imread('Banaan_template.jpg')
-    # All the 6 methods for comparison in a list
-    methods = ['cv.TM_CCOEFF', 'cv.TM_CCOEFF_NORMED', 'cv.TM_CCORR', 'cv.TM_CCORR_NORMED', 'cv.TM_SQDIFF', 'cv.TM_SQDIFF_NORMED']
-    
-    width = template_image.shape[1]
-    height = template_image.shape[0]
-
-    image = image2.copy()
-    # Apply template Matching
-    res = cv2.matchTemplate(image,template_image, cv2.TM_CCOEFF_NORMED)
-    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
-    top_left = max_loc
-    bottom_right = (top_left[0] + width, top_left[1] + height)
-    cv2.rectangle(image,top_left, bottom_right, 255, 2)
-    cv2.imshow("Yoink", image)
+    # Template image method 2
+    template_matching(image, template_image)
 
 
 
-    copy_image = image.copy()
     threshold1 = cv2.getTrackbarPos("threshold1", "parameters")
     threshold2 = cv2.getTrackbarPos("threshold2", "parameters")
     #threshold1 = 43  # (Used for image: 35)
@@ -143,6 +158,7 @@ while(True):
     #cv2.imshow("dilate", imdil)
     #cv2.imshow("Erode", erode)
     #cv2.imshow("Image", copy_image)
+    #template_matching(image)
 
     # Press backspace to clear all windows    
     c = cv2.waitKey(1)
