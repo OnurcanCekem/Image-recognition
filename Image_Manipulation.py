@@ -3,9 +3,10 @@
 Created on Mon Aug 16 12:30:31 2023
 
 @author: onurc
-Version: V0.5
-Description: Image manipulation in the form of blurring, eroding and dilating images.
-Outputs all the blur, eroding and dilating filters.
+Version: V0.6
+Description: Image manipulation now used for testing with a trackbar
+Filters: blur, eroding, dilating, Circle and template matching.
+
 """
 
 import cv2
@@ -48,6 +49,8 @@ cv2.resizeWindow("parameters",320,80)
 cv2.createTrackbar("threshold1", "parameters", 150,255,empty)
 cv2.createTrackbar("threshold2", "parameters", 50,255,empty)
 cv2.createTrackbar("threshold_tm", "parameters", 95,100,empty)
+cv2.createTrackbar("threshold_circle_max", "parameters", 100,100,empty)
+cv2.createTrackbar("threshold_circle_min", "parameters", 13,100,empty)
 #cv2.createTrackbar("area", "parameters", 5000, 90000, empty)
 
 # Template matching example, currently unused as it's a bit wonky.
@@ -87,39 +90,49 @@ def template_matching(image, template_image):
     image = cv2.rectangle(image,top_left, bottom_right, 255, 3)
     resized_concat(image, template_image, "Template matching: input (left) and template (right)", 550, 400)
 
+
+
+
 while(True):
     # Create variables
-    image = cv2.imread('Banaan3_13.jpg')
+    image = cv2.imread('Banaan3_20.jpg')
+    constant_image = image.copy()
     template_image = cv2.imread('Banaan_template3_650x360.jpg')
-    
+
     # Template image method 2
-    template_matching(image, template_image)
 
 
 
     threshold1 = cv2.getTrackbarPos("threshold1", "parameters")
     threshold2 = cv2.getTrackbarPos("threshold2", "parameters")
-    #threshold1 = 43  # (Used for image: 35)
-    #threshold2 = 104 # (Used for image: 78)
-    
+    threshold_circle_max = cv2.getTrackbarPos("threshold_circle_max", "parameters")
+    threshold_circle_min = cv2.getTrackbarPos("threshold_circle_min", "parameters")
+    #threshold_circle_max = 100
+    #threshold_circle_min = 15
+    #threshold1 = 35  # (Used for image: 35, 43)
+    #threshold2 = 78 # (Used for image: 78, 104)
+
     # Blur
-    blur = cv2.blur(image,(7,7))
+    #blur = cv2.blur(image,(7,7))
+    blur = cv2.GaussianBlur(image,(9,9),2)
+
     # Convert the blurred image to grayscale
-    gray = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    grayblur = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
 
     # Binary image
-    binary_image = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
+    binary_image = cv2.threshold(grayblur, 100, 255, cv2.THRESH_BINARY)
 
     # Gaussian blur
-    gaussian = cv2.GaussianBlur(gray,(7,7),1)
+    gaussian = cv2.GaussianBlur(grayblur,(7,7),1)
     # Median blur
-    
-    median = cv2.medianBlur(gray,7)
+
+    median = cv2.medianBlur(grayblur,7)
     # Bilateral blur
-    bilateral = cv2.bilateralFilter(gray,9,75,75)
+    bilateral = cv2.bilateralFilter(grayblur,9,75,75)
 
     # Canny edge
-    canny = cv2.Canny(gray, threshold1, threshold2)
+    canny = cv2.Canny(grayblur, threshold1, threshold2)
     cannygaussian = cv2.Canny(gaussian, threshold1, threshold2)
     cannymedian = cv2.Canny(median, threshold1, threshold2)
     cannybilateral = cv2.Canny(bilateral, threshold1, threshold2)
@@ -141,6 +154,35 @@ while(True):
     gray_bright = cv2.cvtColor(bilateral_bright, cv2.COLOR_BGR2GRAY)
     canny_bright = cv2.Canny(gray_bright, threshold1, threshold2)
 
+
+
+    # Use the Hough Circle Transform to detect circles
+    circles = cv2.HoughCircles(
+        grayblur,               # Input grayscale image
+        cv2.HOUGH_GRADIENT,    # Detection method
+        dp=1,                  # Inverse ratio of accumulator resolution
+        minDist=10,            # Minimum distance between detected centers
+        param1=threshold_circle_max,             # Upper threshold for edge detection 50
+        param2=threshold_circle_min,             # Threshold for center detection 30
+        minRadius=1,          # Minimum radius of the circle
+        maxRadius=25          # Maximum radius of the circle
+    )
+    # If circles are found, draw them on the original image
+    if circles is not None:
+        circles = np.uint16(np.around(circles))
+        for circle in circles[0, :]:
+            center = (circle[0], circle[1])
+            radius = circle[2]
+            # Draw the circle outline
+            cv2.circle(image, center, radius, (0, 255, 0), 2)
+
+
+    #plt.figure(figsize=(8, 6))
+    #plt.title('Circle Detection in Banana Image')
+    #plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    #plt.axis('off')
+    #plt.show()
+
     #cv2.imshow("Grayscale", gray)
     #cv2.imshow("Blur", blur)
     #cv2.imshow("Gaussian blur", gaussian)
@@ -155,10 +197,13 @@ while(True):
     #cv2.imshow("Canny_gaussian", cannygaussian)
     #cv2.imshow("Canny_median", cannymedian)
     #cv2.imshow("Canny_bilateral", cannybilateral)
+    #resize_image("Canny_bilateral",50, cannybilateral)
+    resize_image("Image",50, image)
     #cv2.imshow("dilate", imdil)
     #cv2.imshow("Erode", erode)
     #cv2.imshow("Image", copy_image)
     #template_matching(image)
+    #template_matching(image, template_image)
 
     # Press backspace to clear all windows    
     c = cv2.waitKey(1)
