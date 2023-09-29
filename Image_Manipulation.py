@@ -3,7 +3,7 @@
 Created on Mon Aug 16 12:30:31 2023
 
 @author: onurc
-Version: V0.6
+Version: V0.7
 Description: Image manipulation now used for testing with a trackbar
 Filters: blur, eroding, dilating, Circle and template matching.
 
@@ -44,6 +44,10 @@ def resized_concat(img, img2, name, w, h):
 def empty(a):
     pass
 
+def close_button(*args):
+    cv2.destroyAllWindows() 
+    pass
+
 cv2.namedWindow("parameters")
 cv2.resizeWindow("parameters",320,80)
 cv2.createTrackbar("threshold1", "parameters", 150,255,empty)
@@ -51,6 +55,7 @@ cv2.createTrackbar("threshold2", "parameters", 50,255,empty)
 cv2.createTrackbar("threshold_tm", "parameters", 95,100,empty)
 cv2.createTrackbar("threshold_circle_max", "parameters", 100,100,empty)
 cv2.createTrackbar("threshold_circle_min", "parameters", 13,100,empty)
+
 #cv2.createTrackbar("area", "parameters", 5000, 90000, empty)
 
 # Template matching example, currently unused as it's a bit wonky.
@@ -70,10 +75,13 @@ def template_matching_example(image, template_image):
         cv2.rectangle(image, pt, (pt[0] + width, pt[1] + height), (0, 255, 0), 2)
     cv2.imshow('Detected Bananas', image)
 
+# Template matching attempt #2
+# variable image: image input
+# variable template_img: image input to compare with    
+# methods = ['cv.TM_CCOEFF', 'cv.TM_CCOEFF_NORMED', 'cv.TM_CCORR', 'cv.TM_CCORR_NORMED', 'cv.TM_SQDIFF', 'cv.TM_SQDIFF_NORMED']
 def template_matching(image, template_image):
     # Template image attempt 2
     # All the 6 methods for comparison in a list
-    # methods = ['cv.TM_CCOEFF', 'cv.TM_CCOEFF_NORMED', 'cv.TM_CCORR', 'cv.TM_CCORR_NORMED', 'cv.TM_SQDIFF', 'cv.TM_SQDIFF_NORMED']
 
 
     # Apply template Matching
@@ -90,16 +98,29 @@ def template_matching(image, template_image):
     image = cv2.rectangle(image,top_left, bottom_right, 255, 3)
     resized_concat(image, template_image, "Template matching: input (left) and template (right)", 550, 400)
 
-
+# Create histogram
+# variable image: image input
+# variable title: title of plot
+def histogram(image, title):
+    # Calculate the histogram
+    histogram = cv2.calcHist([image], [0], None, [256], [0, 256])
+    # Plot the histogram
+    plt.figure(figsize=(8, 6))
+    plt.title(title)
+    plt.xlabel('Pixel Value')
+    plt.ylabel('Frequency')
+    plt.plot(histogram)
+    plt.xlim([0, 256])  # Set the x-axis range from 0 to 255 (pixel values)
+    plt.grid(True)
+    plt.show()
 
 
 while(True):
     # Create variables
-    image = cv2.imread('Banaan3_20.jpg')
+    image =  cv2.imread('Banaanfase3\Banaan3_2.jpg')
+    image2 =  cv2.imread('Banaanfase3\Banaan3_1.jpg')
     constant_image = image.copy()
     template_image = cv2.imread('Banaan_template3_650x360.jpg')
-
-    # Template image method 2
 
 
 
@@ -115,10 +136,13 @@ while(True):
     # Blur
     #blur = cv2.blur(image,(7,7))
     blur = cv2.GaussianBlur(image,(9,9),2)
+    blur2 = cv2.GaussianBlur(image2,(9,9),2)
 
     # Convert the blurred image to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    gray2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
     grayblur = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
+    grayblur2 = cv2.cvtColor(blur2, cv2.COLOR_BGR2GRAY)
 
     # Binary image
     binary_image = cv2.threshold(grayblur, 100, 255, cv2.THRESH_BINARY)
@@ -166,7 +190,8 @@ while(True):
         param2=threshold_circle_min,             # Threshold for center detection 30
         minRadius=1,          # Minimum radius of the circle
         maxRadius=25          # Maximum radius of the circle
-    )
+    )    
+    
     # If circles are found, draw them on the original image
     if circles is not None:
         circles = np.uint16(np.around(circles))
@@ -183,33 +208,53 @@ while(True):
     #plt.axis('off')
     #plt.show()
 
-    #cv2.imshow("Grayscale", gray)
-    #cv2.imshow("Blur", blur)
-    #cv2.imshow("Gaussian blur", gaussian)
-    #cv2.imshow("Median blur", median)
-    #cv2.imshow("Original", image)
-    #cv2.imshow("Canny", canny)
-    #cv2.imshow("Canny_Bright", canny_bright)
-    #resize_image("Original", 50, image)
-    #resize_image("Original Bright", 50, bright_image)
-    #resize_image("Canny", 50, canny)
-    #resize_image("Canny_Bright", 50, canny_bright)
-    #cv2.imshow("Canny_gaussian", cannygaussian)
-    #cv2.imshow("Canny_median", cannymedian)
-    #cv2.imshow("Canny_bilateral", cannybilateral)
-    #resize_image("Canny_bilateral",50, cannybilateral)
     resize_image("Image",50, image)
-    #cv2.imshow("dilate", imdil)
-    #cv2.imshow("Erode", erode)
-    #cv2.imshow("Image", copy_image)
-    #template_matching(image)
-    #template_matching(image, template_image)
 
-    # Press backspace to clear all windows    
+    #histogram(gray, "Histogram image")
+    #histogram(gray, "Histogram image2")
+    
+
+    # Calculate the histograms for both images
+    hist1 = cv2.calcHist([grayblur], [0], None, [256], [0, 256])
+    hist2 = cv2.calcHist([grayblur2], [0], None, [256], [0, 256])
+
+
+
+    circles = cv2.HoughCircles(
+            grayblur,               # Input grayscale image
+            cv2.HOUGH_GRADIENT,    # Detection method
+            dp=1,                  # Inverse ratio of accumulator resolution
+            minDist=10,            # Minimum distance between detected centers
+            param1=threshold_circle_max,             # Upper threshold for edge detection 50
+            param2=threshold_circle_min,             # Threshold for center detection 30
+            minRadius=1,          # Minimum radius of the circle
+            maxRadius=25          # Maximum radius of the circle
+        )
+    # Plot both histograms in a single figure
+    plt.figure(figsize=(12, 6))
+    plt.subplot(121)
+    plt.title('Histogram of Banana Image 1')
+    plt.xlabel('Pixel Value')
+    plt.ylabel('Frequency')
+    plt.plot(hist1)
+    plt.xlim([0, 256])  # Set the x-axis range from 0 to 255 (pixel values)
+    plt.grid(True)
+
+    plt.subplot(122)
+    plt.title('Histogram of Banana Image 2')
+    plt.xlabel('Pixel Value')
+    plt.ylabel('Frequency')
+    plt.plot(hist2)
+    plt.xlim([0, 256])  # Set the x-axis range from 0 to 255 (pixel values)
+    plt.grid(True)
+
+    plt.tight_layout()
+    plt.show()
+
+    # Press escape to clear all windows    
     c = cv2.waitKey(1)
     if c == 27 & 0xFF:
         break
-
 #cv2.imshow("Dilate", dilated_image)
 #cv2.imshow("Binary image", binary_image)
 
