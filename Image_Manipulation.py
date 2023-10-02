@@ -3,7 +3,7 @@
 Created on Mon Aug 16 12:30:31 2023
 
 @author: onurc
-Version: V0.7
+Version: V0.8
 Description: Image manipulation now used for testing with a trackbar
 Filters: blur, eroding, dilating, Circle and template matching.
 
@@ -13,6 +13,7 @@ import cv2
 import numpy as np
 import copy
 from matplotlib import pyplot as plt
+import time
 
 # Resize image. Designed to be similar as cv2.imshow()
 # variable name: Name of the end result of the image
@@ -44,9 +45,6 @@ def resized_concat(img, img2, name, w, h):
 def empty(a):
     pass
 
-def close_button(*args):
-    cv2.destroyAllWindows() 
-    pass
 
 cv2.namedWindow("parameters")
 cv2.resizeWindow("parameters",320,80)
@@ -114,11 +112,39 @@ def histogram(image, title):
     plt.grid(True)
     plt.show()
 
+def RGB_histogram(image):
+        # Create a Matplotlib figure
+    plt.figure(figsize=(8, 6))
+    # Split the image into its RGB channels
+    b, g, r = cv2.split(image)
+
+    # Calculate the histograms for each channel
+    hist_b = cv2.calcHist([b], [0], None, [256], [0, 256])
+    hist_g = cv2.calcHist([g], [0], None, [256], [0, 256])
+    hist_r = cv2.calcHist([r], [0], None, [256], [0, 256])
+
+    # Plot the histograms on the same graph
+    plt.plot(hist_b, color='b', label='Blue')
+    plt.plot(hist_g, color='g', label='Green')
+    plt.plot(hist_r, color='r', label='Red')
+
+    # Set title and labels
+    plt.title('RGB Histogram')
+    plt.xlabel('Pixel Value')
+    plt.ylabel('Frequency')
+
+    # Add a legend to distinguish the channels
+    plt.legend()
+
+    # Show the plots
+    plt.tight_layout()
+    plt.show()
 
 while(True):
     # Create variables
     image =  cv2.imread('Banaanfase3\Banaan3_2.jpg')
     image2 =  cv2.imread('Banaanfase3\Banaan3_1.jpg')
+    b, g, r = cv2.split(image)
     constant_image = image.copy()
     template_image = cv2.imread('Banaan_template3_650x360.jpg')
 
@@ -208,18 +234,32 @@ while(True):
     #plt.axis('off')
     #plt.show()
 
-    resize_image("Image",50, image)
+    #resize_image("Image",50, image)
 
     #histogram(gray, "Histogram image")
     #histogram(gray, "Histogram image2")
     
-
     # Calculate the histograms for both images
     hist1 = cv2.calcHist([grayblur], [0], None, [256], [0, 256])
     hist2 = cv2.calcHist([grayblur2], [0], None, [256], [0, 256])
+    
+    histRGB = cv2.calcHist([image], [0, 1, 2], None, [256, 256, 256], [0, 256, 0, 256, 0, 256])
+
+    # Find the dominant color and its frequency
+    dominant_color = np.unravel_index(histRGB.argmax(), histRGB.shape)
+    dominant_frequency = histRGB[dominant_color]
+
+    # Calculate the mean of the RGB histogram
+    total_pixels = np.sum(histRGB)
+    mean_rgb = [np.sum(histRGB[:, :, i] * np.arange(256)) / total_pixels for i in range(3)]
+
+    print("Dominant Color (RGB):", dominant_color)
+    print("Dominant Frequency:", dominant_frequency)
+    print("Mean RGB:", mean_rgb)
 
 
-
+    RGB_histogram(image)
+    
     circles = cv2.HoughCircles(
             grayblur,               # Input grayscale image
             cv2.HOUGH_GRADIENT,    # Detection method
@@ -247,14 +287,16 @@ while(True):
     plt.plot(hist2)
     plt.xlim([0, 256])  # Set the x-axis range from 0 to 255 (pixel values)
     plt.grid(True)
-
+    #plt.show()
     plt.tight_layout()
-    plt.show()
-
+    time.sleep(10)
     # Press escape to clear all windows    
     c = cv2.waitKey(1)
+    if cv2.waitKey(33) == ord('a'):
+        break
     if c == 27 & 0xFF:
         break
+    cv2.destroyAllWindows() 
 #cv2.imshow("Dilate", dilated_image)
 #cv2.imshow("Binary image", binary_image)
 
