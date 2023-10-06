@@ -2,7 +2,8 @@
 Created on Mon Oct 02 10:22:39 2023
 
 @author: onurc
-Version: V0.1
+Version: V0.2
+Description: 
 """
 import tkinter as tk
 from tkinter import filedialog
@@ -31,8 +32,10 @@ def load_previous_image():
 
 # Function to load and display a specific image
 def load_image(index):
+    cv2.destroyAllWindows() 
     image_path = image_paths[index]
     img = Image.open(image_path)
+    print(image_path)
     img.thumbnail((400, 400))  # Resize the image if needed
     photo = ImageTk.PhotoImage(img)
 
@@ -77,11 +80,12 @@ def preprocess_image(image_path):
     # Dilate
     kernel = np.ones([3,3])
     dilated_binary_image = cv2.dilate(banana_color_image,kernel,1)
-    cv2.imshow("Title ",banana_color_image)
+    #cv2.imshow("Title ",banana_color_image)
     return dilated_binary_image
 
 # Function to display the RGB histogram of an image
 def display_rgb_histogram(image, index):
+    plt.clf()
     b, g, r = cv2.split(image)
 
     # Calculate the histograms for each channel
@@ -90,7 +94,7 @@ def display_rgb_histogram(image, index):
     hist_r = cv2.calcHist([r], [0], None, [256], [1, 256])
 
     # Create a Matplotlib figure for the RGB histogram
-    plt.figure(figsize=(6, 4))
+    #fig = plt.figure(figsize=(6, 4))
     plt.title(f'RGB Histogram {index}')
     plt.xlabel('Pixel Value')
     plt.ylabel('Frequency')
@@ -156,9 +160,28 @@ def browse_folder():
     image_index = -1  # Start from the first image (index 0) when a new folder is selected
     load_next_image()
 
+def select_phase(index):
+    #cv2.destroyAllWindows() 
+    #plt.clf()
+    global image_paths, image_index
+    #folder_path = 'Banaanfase2'
+    if index == 1:
+        folder_path = 'Banaanfase1'
+    elif index == 2:
+        folder_path = 'Banaanfase2'
+    elif index == 3:
+        folder_path = 'Banaanfase3'
+    elif index == 4:
+        folder_path = 'Banaanfase4'
+
+    image_paths = [os.path.join(folder_path, filename) for filename in os.listdir(folder_path) if filename.endswith('.jpg')]
+    image_index = -1  # Start from the first image (index 0) when a new folder is selected
+    load_next_image()
+
 # Create the main application window
 root = tk.Tk()
 root.title("Image Viewer")
+#fig = plt.figure(figsize=(6, 4))
 
 # Create a label to display the images
 image_label = tk.Label(root)
@@ -171,15 +194,24 @@ previous_button = tk.Button(root, bg='green', text="Previous Image", command=loa
 close_button = tk.Button(root, bg='red', text="Close Program", command=close_program)
 yellow_button = tk.Button(root, bg='yellow', text="Detect Yellow", command=detect_yellow)
 brown_button = tk.Button(root, bg='brown', text="Detect Brown", command=detect_brown)
+fase1_path = tk.Button(root, bg='green', text="Select phase 1", command=lambda: select_phase(1))
+fase2_path = tk.Button(root, bg='green', text="Select phase 2", command=lambda: select_phase(2))
+fase3_path = tk.Button(root, bg='green', text="Select phase 3", command=lambda: select_phase(3))
+fase4_path = tk.Button(root, bg='green', text="Select phase 4", command=lambda: select_phase(4))
 mean_histogram = 300
 w = tk.Label(root, text=f"Mean: {mean_histogram}") #shows as text in the window
 
 browse_button.pack(pady=10)
+fase1_path.pack(padx=10)
+fase2_path.pack(padx=10)
+fase3_path.pack(padx=10)
+fase4_path.pack(padx=10)
 previous_button.pack(side='left', padx=10)
 next_button.pack(side='right', padx=10)
 yellow_button.pack(pady=10)
 brown_button.pack(pady=10)
 close_button.pack(padx=20, pady=10)
+
 w.pack(padx=20, pady=10)
 
 # Initialize global variables
