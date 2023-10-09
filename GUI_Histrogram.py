@@ -2,7 +2,7 @@
 Created on Mon Oct 02 10:22:39 2023
 
 @author: onurc
-Version: V0.2
+Version: V0.3
 Description: 
 """
 import tkinter as tk
@@ -12,6 +12,7 @@ import os
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+
 # Function to close the program
 def close_program():
     root.quit()
@@ -47,6 +48,26 @@ def load_image(index):
     # Display the RGB histogram of the current image
     display_rgb_histogram(image, index)
 
+# Function to load and display a specific image
+def select_image():
+    cv2.destroyAllWindows() 
+    image_path = filedialog.askopenfilename(title="Select an Image", filetype=(('image files','*.jpg'),('all files','*.*')))
+    image = cv2.imread(image_path)
+    cv2.imshow("Yee",image)
+
+    img = Image.open(image_path)
+    img.thumbnail((400, 400))  # Resize the image if needed
+    photo = ImageTk.PhotoImage(img)
+
+    # Update the label with the new image
+    image_label.config(image=photo)
+    image_label.image = photo
+    print(image_path)
+
+    #image = preprocess_image(image_path)
+    # Display the RGB histogram of the current image
+    #display_rgb_histogram(image)
+
 # Function to load and preprocess images with multiple feature extraction methods
 def preprocess_image(image_path):
     image = cv2.imread(image_path)
@@ -59,6 +80,7 @@ def preprocess_image(image_path):
     hsv_image = cv2.cvtColor(image_bilateralblur, cv2.COLOR_BGR2HSV)
     #h,s,v = cv2.split(hsv_image)
 
+    # define thresholds
     lower_yellow = np.array([15, 50, 70])  # lower threshold for yellow (example: [10, 50, 70])
     upper_yellow = np.array([40, 255, 255])  # upper threshold for yellow (example:  [30, 255, 255])
     lower_brown = np.array([0, 70, 0])  # lower threshold for brown (example: [10, 100, 20])
@@ -73,6 +95,7 @@ def preprocess_image(image_path):
     brown_mask = cv2.inRange(hsv_image, lower_brown, upper_brown) # Create mask
     segmented_image_brown = cv2.bitwise_and(image, image, mask=brown_mask) # Apply brown mask on original image
     binary_image_brown = cv2.bitwise_and(binary_image_brown, binary_image_brown, mask=brown_mask) # Apply mask on binary image
+    
     # Combine yellow and brown
     banana_color_image = cv2.add(segmented_image_yellow, segmented_image_brown)
     binary_image_combined = cv2.add(binary_image_yellow, binary_image_brown)
@@ -84,7 +107,7 @@ def preprocess_image(image_path):
     return dilated_binary_image
 
 # Function to display the RGB histogram of an image
-def display_rgb_histogram(image, index):
+def display_rgb_histogram(image, index=0):
     plt.clf()
     b, g, r = cv2.split(image)
 
@@ -113,6 +136,7 @@ def display_rgb_histogram(image, index):
 # Function to detect yellow pixels
 def detect_yellow():
     global image_paths, image_index
+    print(image_index, image_paths)
     if image_index < len(image_paths):
         image_path = image_paths[image_index]
         img = cv2.imread(image_path)
@@ -128,8 +152,9 @@ def detect_yellow():
         # Display the image with yellow pixels highlighted
         yellow_highlighted = cv2.bitwise_and(img, img, mask=yellow_mask)
         cv2.imshow('Yellow Detection', yellow_highlighted)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        detect_escape_key()
+        #cv2.waitKey(0)
+        #cv2.destroyAllWindows()
 
 # Function to detect brown pixels
 def detect_brown():
@@ -149,8 +174,9 @@ def detect_brown():
         # Display the image with brown pixels highlighted
         brown_highlighted = cv2.bitwise_and(img, img, mask=brown_mask)
         cv2.imshow('Brown Detection', brown_highlighted)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        #detect_escape_key()
+        #cv2.waitKey(0)
+        #cv2.destroyAllWindows()
 
 # Function to browse and select a folder of images
 def browse_folder():
@@ -178,6 +204,12 @@ def select_phase(index):
     image_index = -1  # Start from the first image (index 0) when a new folder is selected
     load_next_image()
 
+def detect_escape_key():
+    while(True):
+        c = cv2.waitKey(0)
+        if c == 27 & 0xFF:
+            cv2.destroyAllWindows()
+
 # Create the main application window
 root = tk.Tk()
 root.title("Image Viewer")
@@ -194,6 +226,7 @@ previous_button = tk.Button(root, bg='green', text="Previous Image", command=loa
 close_button = tk.Button(root, bg='red', text="Close Program", command=close_program)
 yellow_button = tk.Button(root, bg='yellow', text="Detect Yellow", command=detect_yellow)
 brown_button = tk.Button(root, bg='brown', text="Detect Brown", command=detect_brown)
+individual_image = tk.Button(root, bg='green', text="Select image", command=select_image)
 fase1_path = tk.Button(root, bg='green', text="Select phase 1", command=lambda: select_phase(1))
 fase2_path = tk.Button(root, bg='green', text="Select phase 2", command=lambda: select_phase(2))
 fase3_path = tk.Button(root, bg='green', text="Select phase 3", command=lambda: select_phase(3))
@@ -202,6 +235,7 @@ mean_histogram = 300
 w = tk.Label(root, text=f"Mean: {mean_histogram}") #shows as text in the window
 
 browse_button.pack(pady=10)
+individual_image.pack(padx=10)
 fase1_path.pack(padx=10)
 fase2_path.pack(padx=10)
 fase3_path.pack(padx=10)
