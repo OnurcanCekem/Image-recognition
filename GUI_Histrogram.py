@@ -2,7 +2,7 @@
 Created on Mon Oct 02 10:22:39 2023
 
 @author: onurc
-Version: V0.4
+Version: V0.5
 Description: 
 """
 import tkinter as tk
@@ -17,6 +17,9 @@ global image_index
 global image_global
 image_index = 0
 global mean_image
+
+test1_outcome=[]
+test2_outcome=[]
 
 # Function to close the program
 def close_program():
@@ -54,9 +57,8 @@ def load_image(index):
     test1_mean_img()
     image = preprocess_image(image_path)
     display_rgb_histogram(image, index) # Display the RGB histogram of the current image
-    test2_mean_histogram()
     
-    print(image_path)
+    print("Image path: ",image_path)
 
 # Function to load and display a specific image, manually
 def select_image_manually():
@@ -77,10 +79,9 @@ def select_image_manually():
     test1_mean_img()
     image = preprocess_image(image_path)
     display_rgb_histogram(image) # Display the RGB histogram of the current image
-    test2_mean_histogram()
     
 
-    print(image_path)
+    print("Image path: ",image_path)
 
     #image = preprocess_image(image_path)
     # Display the RGB histogram of the current image
@@ -131,15 +132,18 @@ def preprocess_image(image_path=0):
 # Function to display the RGB histogram of an image
 def display_rgb_histogram(image, index=0):
     plt.clf()
+    plt.ion()
     b, g, r = cv2.split(image)
-
+    
+    plt.subplot(1,2,1)
+    
     # Calculate the histograms for each channel
     hist_b = cv2.calcHist([b], [0], None, [256], [1, 256])
     hist_g = cv2.calcHist([g], [0], None, [256], [1, 256])
     hist_r = cv2.calcHist([r], [0], None, [256], [1, 256])
-
+    
     # Create a Matplotlib figure for the RGB histogram
-    #fig = plt.figure(figsize=(6, 4))
+
     plt.title(f'RGB Histogram {index}')
     plt.xlabel('Pixel Value')
     plt.ylabel('Frequency')
@@ -149,11 +153,40 @@ def display_rgb_histogram(image, index=0):
     plt.plot(hist_g, color='g', label='Green')
     plt.plot(hist_r, color='r', label='Red')
 
+    #plt.plot(hist_r, color='r', label='Red')
+    plt.title('Test1 mean')
     # Add a legend to distinguish the channels
     plt.legend()
 
+    # 2nd plot, still available for something
+    plt.subplot(1,2,2)
+
+    mean_histogram = hist_b.mean() + hist_g.mean() + hist_r.mean()
+    mean_histogram_label.config(text = f"Mean_histogram: {mean_histogram}") #shows as text in the window
+    print("Mean hist: ",mean_histogram)
+    plt.plot(mean_histogram, color='y', label='Yellow')
+
+    plt.title(f'Mean Histogram {index}')
+    plt.xlabel('Pixel Value')
+    plt.ylabel('Frequency')
+
     # Display the RGB histogram
     plt.show()
+
+    # Find the dominant color and its frequency
+    #dominant_color = np.unravel_index(hist.argmax(), hist.shape)
+    #dominant_frequency = hist[dominant_color]
+    # Convert dominant_color to BGR format (OpenCV)
+    #dominant_color_bgr = (dominant_color[2], dominant_color[1], dominant_color[0])
+
+    # Calculate the mean of the RGB histogram
+    #total_pixels = np.sum(hist)
+    #mean_rgb = [np.sum(hist[:, :, i] * np.arange(256)) / total_pixels for i in range(3)]
+    #print("Dominant Color (RGB):", dominant_color)
+    #print("Dominant Color (BGR):", dominant_color_bgr)
+    #print("Dominant Frequency:", dominant_frequency)
+    #print("Mean RGB:", mean_rgb)
+
 
 # Function to detect yellow pixels
 def detect_yellow():
@@ -229,14 +262,8 @@ def test1_mean_img():
     global image_global
     global mean_image
     mean_image = np.mean(image_global)
-    print(mean_image)
+    print("Mean Image: ",mean_image)
     mean_image_label.config(text = f"Mean image: {mean_image}") #shows as text in the window
-
-def test2_mean_histogram():
-    global image_global
-    global mean_image
-    mean_histogram = np.mean(image_global)
-    mean_histogram_label.config(text = f"Mean histogram: {mean_histogram}") #shows as text in the window
 
 def detect_escape_key():
     while(True):
@@ -286,6 +313,8 @@ mean_histogram_label.pack(padx=20, pady=10)
 # Initialize global variables
 image_paths = []
 image_index = -1
+
+
 
 # Start the GUI main loop
 root.mainloop()
