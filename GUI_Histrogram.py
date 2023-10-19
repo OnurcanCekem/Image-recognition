@@ -2,7 +2,7 @@
 Created on Mon Oct 02 10:22:39 2023
 
 @author: onurc
-Version: V0.5
+Version: V0.6
 Description: 
 """
 import tkinter as tk
@@ -55,8 +55,9 @@ def load_image(index):
 
     #run the tests
     test1_mean_img()
-    image = preprocess_image(image_path)
-    display_rgb_histogram(image, index) # Display the RGB histogram of the current image
+    display_unpreprocessed_histogram(image_global, index)
+    preprocessed_image = preprocess_image(image_path)
+    display_rgb_histogram(preprocessed_image, index) # Display the RGB histogram of the current image
     
     print("Image path: ",image_path)
 
@@ -77,15 +78,15 @@ def select_image_manually():
 
     #run the tests
     test1_mean_img()
-    image = preprocess_image(image_path)
-    display_rgb_histogram(image) # Display the RGB histogram of the current image
+    display_unpreprocessed_histogram(image_global)
+    preprocessed_image = preprocess_image(image_path)
+    display_rgb_histogram(preprocessed_image) # Display the RGB histogram of the current image
     
 
     print("Image path: ",image_path)
 
     #image = preprocess_image(image_path)
     # Display the RGB histogram of the current image
-    #display_rgb_histogram(image)
 
 # Function to load and preprocess images with multiple feature extraction methods
 def preprocess_image(image_path=0):
@@ -131,11 +132,10 @@ def preprocess_image(image_path=0):
 
 # Function to display the RGB histogram of an image
 def display_rgb_histogram(image, index=0):
-    plt.clf()
-    plt.ion()
+    #plt.ion()
     b, g, r = cv2.split(image)
     
-    plt.subplot(1,2,1)
+    plt.subplot(1,2,2)
     
     # Calculate the histograms for each channel
     hist_b = cv2.calcHist([b], [0], None, [256], [1, 256])
@@ -144,7 +144,7 @@ def display_rgb_histogram(image, index=0):
     
     # Create a Matplotlib figure for the RGB histogram
 
-    plt.title(f'RGB Histogram {index}')
+    plt.title(f'Preprocessed RGB #{index}')
     plt.xlabel('Pixel Value')
     plt.ylabel('Frequency')
 
@@ -154,21 +154,9 @@ def display_rgb_histogram(image, index=0):
     plt.plot(hist_r, color='r', label='Red')
 
     #plt.plot(hist_r, color='r', label='Red')
-    plt.title('Test1 mean')
+    #plt.title(title)
     # Add a legend to distinguish the channels
     plt.legend()
-
-    # 2nd plot, still available for something
-    plt.subplot(1,2,2)
-
-    mean_histogram = hist_b.mean() + hist_g.mean() + hist_r.mean()
-    mean_histogram_label.config(text = f"Mean_histogram: {mean_histogram}") #shows as text in the window
-    print("Mean hist: ",mean_histogram)
-    plt.plot(mean_histogram, color='y', label='Yellow')
-
-    plt.title(f'Mean Histogram {index}')
-    plt.xlabel('Pixel Value')
-    plt.ylabel('Frequency')
 
     # Display the RGB histogram
     plt.show()
@@ -187,6 +175,34 @@ def display_rgb_histogram(image, index=0):
     #print("Dominant Frequency:", dominant_frequency)
     #print("Mean RGB:", mean_rgb)
 
+def display_unpreprocessed_histogram(image, index=0):    
+    plt.clf()
+    plt.ion()
+    b, g, r = cv2.split(image)
+    
+    plt.subplot(1,2,1)
+    
+    # Calculate the histograms for each channel
+    hist_b = cv2.calcHist([b], [0], None, [256], [1, 256])
+    hist_g = cv2.calcHist([g], [0], None, [256], [1, 256])
+    hist_r = cv2.calcHist([r], [0], None, [256], [1, 256])
+    
+    # Create a Matplotlib figure for the RGB histogram
+
+    plt.title(f'Unpreprocessed RGB #{index}')
+    plt.xlabel('Pixel Value')
+    plt.ylabel('Frequency')
+
+    # Plot the histograms for each channel
+    plt.plot(hist_b, color='b', label='Blue')
+    plt.plot(hist_g, color='g', label='Green')
+    plt.plot(hist_r, color='r', label='Red')
+
+    #plt.plot(hist_r, color='r', label='Red')
+    #plt.title(title)
+    # Add a legend to distinguish the channels
+    plt.legend()
+    plt.show()
 
 # Function to detect yellow pixels
 def detect_yellow():
