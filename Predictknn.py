@@ -2,7 +2,7 @@
 Created on Mon Sep 25 12:15:50 2023
 
 @author: onurc
-Version: V0.1
+Version: V0.2
 """
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import train_test_split
@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import cv2
 import os
 import numpy as np
+
 
 # Function to compute and normalize histograms for grayscale images
 def compute_and_normalize_histogram(image, num_bins, hist_range):
@@ -62,13 +63,13 @@ def load_and_preprocess_images(folder_path, label, num_bins, hist_range):
             image_path = os.path.join(folder_path, filename)
             image = cv2.imread(image_path)
 
-            # Compute and normalize histogram feature
+            # Method 1: Compute and normalize histogram feature
             histogram_feature = compute_and_normalize_histogram(image, num_bins, hist_range)
 
-            # Compute brown percentage feature
+            # Method 2: Compute brown percentage feature
             brown_percentage_feature = compute_brown_percentage(image)
 
-            # Compute white percentage in Canny edge feature
+            # Method 3: Compute white percentage in Canny edge feature
             white_percentage_canny_feature = compute_white_percentage_canny(image)
 
             # Combine features
@@ -141,22 +142,19 @@ y_pred = knn_classifier.predict(X_test)
 accuracy = accuracy_score(y_test, y_pred)
 print(f'Accuracy: {accuracy * 100:.2f}%')
 
+
+# ============================================
 # Predict individual image
 image = cv2.imread('Banaanfase2\Banaan2_13.jpg') # read image
-# Predict the ripeness phase of the individual image
-predicted_ripeness = predict_ripeness(image, knn_classifier, num_bins, hist_range)
+predicted_ripeness = predict_ripeness(image, knn_classifier, num_bins, hist_range) # Predict the ripeness phase of the individual image
+print(f'Predicted Ripeness: {predicted_ripeness}') # Print the predicted ripeness phase (1, 2, 3, or 4 for unripe, semi-ripe, ripe, or over-ripe)
 
-# Print the predicted ripeness phase (1, 2, 3, or 4 for unripe, semi-ripe, ripe, or over-ripe)
-print(f'Predicted Ripeness: {predicted_ripeness}')
-
-
+# ============================================
 # Plot n for KNN
 # Define a range of n_neighbors values to test
 n_neighbors_values = range(1, 21)  # Vary from 1 to 20
-
 # Initialize lists to store accuracy values
 accuracy_values = []
-
 
 # Loop through different n_neighbors values and compute accuracy
 for n_neighbors in n_neighbors_values:
