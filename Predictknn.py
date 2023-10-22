@@ -2,16 +2,20 @@
 Created on Mon Sep 25 12:15:50 2023
 
 @author: onurc
-Version: V0.2
+Version: V0.3
 """
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, confusion_matrix
 import matplotlib.pyplot as plt
 import cv2
 import os
 import numpy as np
 
+# Methods
+HISTOGRAM_RGB = True # Method 1: Compute and normalize histogram feature
+BROWN_PERCENTAGE = True # Method 2: Compute brown percentage feature
+CANNY_WHITE_PIXEL = True # Method 3: Compute white percentage in Canny edge feature
 
 # Function to compute and normalize histograms for grayscale images
 def compute_and_normalize_histogram(image, num_bins, hist_range):
@@ -53,6 +57,64 @@ def compute_white_percentage_canny(image):
 
     return white_percentage
 
+def generate_combined_features(image):
+    # Method 1: Compute and normalize histogram feature
+    if HISTOGRAM_RGB:
+        histogram_feature = compute_and_normalize_histogram(image, num_bins, hist_range)
+    else:
+        histogram_feature = []
+    
+    # Method 2: Compute brown percentage feature
+    if BROWN_PERCENTAGE:
+        brown_percentage_feature = compute_brown_percentage(image)
+    else:
+        brown_percentage_feature = 0
+
+    # Method 3: Compute white percentage in Canny edge feature
+    if CANNY_WHITE_PIXEL:
+        white_percentage_canny_feature = compute_white_percentage_canny(image)
+    else:
+        white_percentage_canny_feature = 0
+
+    # Combine features
+    combined_features = np.concatenate((histogram_feature, [brown_percentage_feature, white_percentage_canny_feature]))
+
+    return combined_features
+
+def preprocess_image(image_path=0):
+    image = cv2.imread(image_path)
+    image_bilateralblur = cv2.bilateralFilter(image,9,75,75)
+    image_grayscaledbilateralblur = cv2.cvtColor(image_bilateralblur, cv2.COLOR_BGR2GRAY)
+    _, binary_image_yellow = cv2.threshold(image_grayscaledbilateralblur, 100, 255, cv2.THRESH_BINARY)
+    _, binary_image_brown = cv2.threshold(image_grayscaledbilateralblur, 100, 255, cv2.THRESH_BINARY)
+    
+    # HSV 
+    hsv_image = cv2.cvtColor(image_bilateralblur, cv2.COLOR_BGR2HSV)
+
+    # Define thresholds
+    lower_yellow = np.array([15, 50, 70])  # lower threshold for yellow (example: [10, 50, 70])
+    upper_yellow = np.array([40, 255, 255])  # upper threshold for yellow (example:  [30, 255, 255])
+    lower_brown = np.array([0, 70, 0])  # lower threshold for brown (example: [10, 100, 20])
+    upper_brown = np.array([20, 255, 200])  # upper threshold for brown (example: [20, 255, 200])
+    
+    # Yellow mask (Filter with color range)
+    yellow_mask = cv2.inRange(hsv_image, lower_yellow, upper_yellow) # Create mask
+    segmented_image_yellow = cv2.bitwise_and(image, image, mask=yellow_mask) # Apply yellow mask on original image
+    binary_image_yellow = cv2.bitwise_and(binary_image_yellow, binary_image_yellow, mask=yellow_mask) # Apply mask on binary image
+
+    # Brown mask (Filter with color range)
+    brown_mask = cv2.inRange(hsv_image, lower_brown, upper_brown) # Create mask
+    segmented_image_brown = cv2.bitwise_and(image, image, mask=brown_mask) # Apply brown mask on original image
+    binary_image_brown = cv2.bitwise_and(binary_image_brown, binary_image_brown, mask=brown_mask) # Apply mask on binary image
+
+    # Combine yellow and brown
+    banana_mask = cv2.add(binary_image_yellow, binary_image_brown)
+    kernel = np.ones([3,3])
+    banana_mask_dilate = cv2.dilate(banana_mask,kernel,1)
+    preprocessed_banana = cv2.bitwise_and(image, image, mask=banana_mask_dilate)
+
+    return preprocessed_banana
+
 # Function to load and preprocess images with multiple feature extraction methods
 def load_and_preprocess_images(folder_path, label, num_bins, hist_range):
     features = []
@@ -62,18 +124,9 @@ def load_and_preprocess_images(folder_path, label, num_bins, hist_range):
         if filename.endswith('.jpg'):
             image_path = os.path.join(folder_path, filename)
             image = cv2.imread(image_path)
+            #image = preprocess_image(image_path)
 
-            # Method 1: Compute and normalize histogram feature
-            histogram_feature = compute_and_normalize_histogram(image, num_bins, hist_range)
-
-            # Method 2: Compute brown percentage feature
-            brown_percentage_feature = compute_brown_percentage(image)
-
-            # Method 3: Compute white percentage in Canny edge feature
-            white_percentage_canny_feature = compute_white_percentage_canny(image)
-
-            # Combine features
-            combined_features = np.concatenate((histogram_feature, [brown_percentage_feature, white_percentage_canny_feature]))
+            combined_features = generate_combined_features(image)
 
             features.append(combined_features)
             labels.append(label)
@@ -82,24 +135,33 @@ def load_and_preprocess_images(folder_path, label, num_bins, hist_range):
 
 # Function to predict the ripeness phase of an individual image
 def predict_ripeness(image, knn_classifier, num_bins, hist_range):
-
-    # Compute and normalize histogram feature
-    histogram_feature = compute_and_normalize_histogram(image, num_bins, hist_range)
-
-    # Compute brown percentage feature
-    brown_percentage_feature = compute_brown_percentage(image)
-
-    # Compute white percentage in Canny edge feature
-    white_percentage_canny_feature = compute_white_percentage_canny(image)
-
-    # Combine features into a single feature vector
-    feature_vector = np.concatenate((histogram_feature, [brown_percentage_feature, white_percentage_canny_feature]))
-
+    combined_features = generate_combined_features(image)
+    
     # Make a prediction using the KNN classifier
-    prediction = knn_classifier.predict([feature_vector])
+    prediction = knn_classifier.predict([combined_features])
 
     return prediction[0]
 
+# Function to go through a folder and return a accuracy percentage
+def get_accuracy_percentage(image_paths, label_phase):
+    correct = 0
+    wrong = 0
+    for filename in os.listdir(image_paths):
+            if filename.endswith('.jpg'):
+                image_path = os.path.join(image_paths, filename)
+                image = cv2.imread(image_path)
+                predicted_ripeness = predict_ripeness(image, knn_classifier, num_bins, hist_range) # Predict the ripeness phase of the individual image
+                if label_phase != predicted_ripeness:
+                    print(f"{predicted_ripeness} Wrong {image_path}")
+                    wrong+=1
+                else:
+                    print(f"{predicted_ripeness} Correct {image_path}")
+                    correct+=1
+    #print(f"wrong: {wrong} and correct: {correct}")
+    return (correct /(correct+wrong)*100)
+    
+
+    
 
 # Define paths to your dataset folders for each ripeness phase
 fase1_path = 'Banaanfase1'
@@ -127,7 +189,7 @@ y = unripe_labels + semi_ripe_labels + ripe_labels
 #y = unripe_labels + semi_ripe_labels + ripe_labels + over_ripe_labels
 
 # Split the data into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=42)
 
 # Create a KNN classifier
 knn_classifier = KNeighborsClassifier(n_neighbors=5)  # You can adjust the number of neighbors (k) as needed
@@ -145,9 +207,35 @@ print(f'Accuracy: {accuracy * 100:.2f}%')
 
 # ============================================
 # Predict individual image
-image = cv2.imread('Banaanfase2\Banaan2_13.jpg') # read image
+image = cv2.imread('Banaanfase3\Banaan3_41.jpg') # read image
 predicted_ripeness = predict_ripeness(image, knn_classifier, num_bins, hist_range) # Predict the ripeness phase of the individual image
 print(f'Predicted Ripeness: {predicted_ripeness}') # Print the predicted ripeness phase (1, 2, 3, or 4 for unripe, semi-ripe, ripe, or over-ripe)
+
+# ============================================
+# Graph accuracy for each file path
+fase1_percentage_correct = get_accuracy_percentage(fase1_path, 1)
+fase2_percentage_correct = get_accuracy_percentage(fase2_path, 2)
+fase3_percentage_correct = get_accuracy_percentage(fase3_path, 3)
+
+percentage_correct = [fase1_percentage_correct, fase2_percentage_correct, fase3_percentage_correct]
+percentage_incorrect = [100-fase1_percentage_correct, 100-fase2_percentage_correct, 100-fase3_percentage_correct]
+
+x = range(len(labels))
+plt.figure(figsize=(10, 6))
+plt.bar(x, percentage_correct, width=0.4, label='Correct Predictions')
+plt.bar(x, percentage_incorrect, width=0.4, label='Incorrect Predictions', bottom=percentage_correct)
+plt.xlabel('Phase')
+plt.ylabel('Percentage')
+plt.title('Correct and Incorrect Predictions by phases')
+plt.xticks(x, labels)
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+
+
+
+
 
 # ============================================
 # Plot n for KNN
