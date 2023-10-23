@@ -2,7 +2,7 @@
 Created on Mon Sep 25 12:15:50 2023
 
 @author: onurc
-Version: V0.4
+Version: V0.5
 """
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import train_test_split
@@ -30,19 +30,20 @@ def compute_and_normalize_histogram(image, num_bins, hist_range):
 # Function to count the percentage of brown pixels in an image
 def compute_brown_percentage(image):
     # Define a threshold for brown color (adjust as needed)
-    lower_brown = np.array([10, 60, 20], dtype=np.uint8)
-    upper_brown = np.array([60, 160, 90], dtype=np.uint8)
+    #lower_brown = np.array([10, 60, 20], dtype=np.uint8)
+    #upper_brown = np.array([60, 160, 90], dtype=np.uint8)
+    lower_brown = np.array([0, 70, 0], dtype=np.uint8)
+    upper_brown = np.array([20, 255, 200], dtype=np.uint8)
 
     # Convert the image to the HSV color space
     hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
     # Create a mask to select brown pixels
     brown_mask = cv2.inRange(hsv_image, lower_brown, upper_brown)
-
     # Calculate the percentage of brown pixels
     total_pixels = image.shape[0] * image.shape[1]
     brown_pixels = np.count_nonzero(brown_mask)
-    brown_percentage = (brown_pixels / total_pixels) * 100
+    brown_percentage = (brown_pixels / total_pixels)
 
     return brown_percentage
 
@@ -58,11 +59,11 @@ def compute_white_percentage_canny(image):
     total_pixels = edges.shape[0] * edges.shape[1]
     white_pixels = np.count_nonzero(edges)
     white_percentage = (white_pixels / total_pixels) * 100
-    
 
     return white_pixels
 
 def generate_combined_features(image):
+    combined_features = [None] * 2
     # Method 1: Compute and normalize histogram feature
     if HISTOGRAM_RGB:
         histogram_feature = compute_and_normalize_histogram(image, num_bins, hist_range)
@@ -81,9 +82,14 @@ def generate_combined_features(image):
     else:
         white_percentage_canny_feature = 0
 
-    # Combine features
-    combined_features = np.concatenate((histogram_feature, [brown_percentage_feature, white_percentage_canny_feature]))
+    #print("canny ", white_percentage_canny_feature)
 
+    # Combine features
+    #combined_features = np.concatenate((histogram_feature, [brown_percentage_feature, white_percentage_canny_feature])) # Something goes wrong here
+    combined_features[0] = brown_percentage_feature # Something goes wrong here
+    combined_features[1] = white_percentage_canny_feature # Something goes wrong here
+
+    #print("combined ",combined_features[1])
     return combined_features
 
 def preprocess_image(image_path=0):
@@ -124,7 +130,6 @@ def preprocess_image(image_path=0):
 def load_and_preprocess_images(folder_path, label, num_bins, hist_range):
     features = []
     labels = []
-
     for filename in os.listdir(folder_path):
         if filename.endswith('.jpg'):
             image_path = os.path.join(folder_path, filename)
@@ -132,7 +137,6 @@ def load_and_preprocess_images(folder_path, label, num_bins, hist_range):
             #image = preprocess_image(image_path)
 
             combined_features = generate_combined_features(image)
-
             features.append(combined_features)
             labels.append(label)
 
@@ -157,10 +161,10 @@ def get_accuracy_percentage(image_paths, label_phase):
                 image = cv2.imread(image_path)
                 predicted_ripeness = predict_ripeness(image, knn_classifier, num_bins, hist_range) # Predict the ripeness phase of the individual image
                 if label_phase != predicted_ripeness:
-                    print(f"{predicted_ripeness} Wrong {image_path}")
+                    #print(f"{predicted_ripeness} Wrong {image_path}")
                     wrong+=1
                 else:
-                    print(f"{predicted_ripeness} Correct {image_path}")
+                    #print(f"{predicted_ripeness} Correct {image_path}")
                     correct+=1
     #print(f"wrong: {wrong} and correct: {correct}")
     return (correct /(correct+wrong)*100)
@@ -171,7 +175,7 @@ def Single_knn_scatter(feature_vector, color):
         test1_outcome = feature_vector[1][i]*100 # Brown percentage
         test2_outcome = feature_vector[2][i] # Canny white pixel count
 
-        print(test1_outcome, test2_outcome)
+        #print(test1_outcome, test2_outcome)
         #plt.scatter (unripe_features[1][i],unripe_features[2][i],c='b')
         plt.scatter(test1_outcome,test2_outcome,c=color)
         plt.xlabel("outcome 1, brown percentage")
@@ -204,12 +208,12 @@ ripe_features, ripe_labels = load_and_preprocess_images(fase3_path, labels[2], n
 
 # Combine data from all ripeness phases
 X = unripe_features + semi_ripe_features + ripe_features
-y = unripe_labels + semi_ripe_labels + ripe_labels
+Y = unripe_labels + semi_ripe_labels + ripe_labels
 #X = unripe_features + semi_ripe_features + ripe_features + over_ripe_features
-#y = unripe_labels + semi_ripe_labels + ripe_labels + over_ripe_labels
-
+#Y = unripe_labels + semi_ripe_labels + ripe_labels + over_ripe_labels
+print(unripe_features)
 # Split the data into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.20, random_state=42)
 
 # Create a KNN classifier
 knn_classifier = KNeighborsClassifier(n_neighbors=5)  # You can adjust the number of neighbors (k) as needed
@@ -229,7 +233,7 @@ print(f'Accuracy: {accuracy * 100:.2f}%')
 # Predict individual image
 image = cv2.imread('Banaanfase3\Banaan3_41.jpg') # read image
 combined_features_image = generate_combined_features(image)
-print("Image results: ", combined_features_image[1]*100, combined_features_image[2])
+print("Image results: ", combined_features_image[0]*100, combined_features_image[1])
 predicted_ripeness = predict_ripeness(image, knn_classifier, num_bins, hist_range) # Predict the ripeness phase of the individual image
 print(f'Predicted Ripeness: {predicted_ripeness}') # Print the predicted ripeness phase (1, 2, 3, or 4 for unripe, semi-ripe, ripe, or over-ripe)
 
@@ -269,25 +273,27 @@ if KNN_SCATTER:
     length = max(len(unripe_features), len(ripe_features), len(semi_ripe_features))
     x = [None] * length
     y = [None] * length
+    print(length)
     for i in range(len(labels)):
-        for j in range(length):
+        if i == 0:
+            length_label = len(unripe_features)
+        if i == 1:
+            length_label = len(ripe_features)
+        if i == 2:
+            length_label = len(semi_ripe_features)
+        for j in range(length_label):
+            #print(i,j)
             if i == 0:
-                test1_outcome = unripe_features[1][j]*100
-                test2_outcome = unripe_features[2][j]
-                x[j] = test1_outcome
-                y[j] = test2_outcome
+                x[j] = unripe_features[j][0]
+                y[j] = unripe_features[j][1]
                 color = 'b'
             if i == 1:
-                test1_outcome = ripe_features[1][j]*100
-                test2_outcome = ripe_features[2][j]
-                x[j] = test1_outcome
-                y[j] = test2_outcome
+                x[j] = ripe_features[j][0]
+                y[j] = ripe_features[j][1]
                 color = 'r'
             if i == 2:
-                test1_outcome = semi_ripe_features[1][j]*100
-                test2_outcome = semi_ripe_features[2][j]
-                x[j] = test1_outcome
-                y[j] = test2_outcome
+                x[j] = semi_ripe_features[j][0]
+                y[j] = semi_ripe_features[j][1]
                 color = 'g'
             #print(test1_outcome, test2_outcome)
             #plt.scatter (unripe_features[1][i],unripe_features[2][i],c='b')
