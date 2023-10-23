@@ -2,7 +2,7 @@
 Created on Mon Sep 25 12:15:50 2023
 
 @author: onurc
-Version: V0.3
+Version: V0.4
 """
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import train_test_split
@@ -16,6 +16,10 @@ import numpy as np
 HISTOGRAM_RGB = True # Method 1: Compute and normalize histogram feature
 BROWN_PERCENTAGE = True # Method 2: Compute brown percentage feature
 CANNY_WHITE_PIXEL = True # Method 3: Compute white percentage in Canny edge feature
+
+PERCENTAGE_GRAPH = False
+KNN_SCATTER = True
+KNN_NEIGHBOR_GRAPH = False
 
 # Function to compute and normalize histograms for grayscale images
 def compute_and_normalize_histogram(image, num_bins, hist_range):
@@ -54,8 +58,9 @@ def compute_white_percentage_canny(image):
     total_pixels = edges.shape[0] * edges.shape[1]
     white_pixels = np.count_nonzero(edges)
     white_percentage = (white_pixels / total_pixels) * 100
+    
 
-    return white_percentage
+    return white_pixels
 
 def generate_combined_features(image):
     # Method 1: Compute and normalize histogram feature
@@ -159,7 +164,22 @@ def get_accuracy_percentage(image_paths, label_phase):
                     correct+=1
     #print(f"wrong: {wrong} and correct: {correct}")
     return (correct /(correct+wrong)*100)
-    
+
+# Plot scatter for KNN
+def Single_knn_scatter(feature_vector, color):
+    for i in range(len(feature_vector)):
+        test1_outcome = feature_vector[1][i]*100 # Brown percentage
+        test2_outcome = feature_vector[2][i] # Canny white pixel count
+
+        print(test1_outcome, test2_outcome)
+        #plt.scatter (unripe_features[1][i],unripe_features[2][i],c='b')
+        plt.scatter(test1_outcome,test2_outcome,c=color)
+        plt.xlabel("outcome 1, brown percentage")
+        plt.ylabel("outcome 2, white canny pixel")
+    plt.grid(color='gray', linestyle='-', linewidth=1)
+    plt.show()
+    for i in labels:
+        print (i,colors[(i)])
 
     
 
@@ -208,57 +228,122 @@ print(f'Accuracy: {accuracy * 100:.2f}%')
 # ============================================
 # Predict individual image
 image = cv2.imread('Banaanfase3\Banaan3_41.jpg') # read image
+combined_features_image = generate_combined_features(image)
+print("Image results: ", combined_features_image[1]*100, combined_features_image[2])
 predicted_ripeness = predict_ripeness(image, knn_classifier, num_bins, hist_range) # Predict the ripeness phase of the individual image
 print(f'Predicted Ripeness: {predicted_ripeness}') # Print the predicted ripeness phase (1, 2, 3, or 4 for unripe, semi-ripe, ripe, or over-ripe)
 
 # ============================================
 # Graph accuracy for each file path
-fase1_percentage_correct = get_accuracy_percentage(fase1_path, 1)
-fase2_percentage_correct = get_accuracy_percentage(fase2_path, 2)
-fase3_percentage_correct = get_accuracy_percentage(fase3_path, 3)
+if PERCENTAGE_GRAPH:
+    fase1_percentage_correct = get_accuracy_percentage(fase1_path, 1)
+    fase2_percentage_correct = get_accuracy_percentage(fase2_path, 2)
+    fase3_percentage_correct = get_accuracy_percentage(fase3_path, 3)
 
-percentage_correct = [fase1_percentage_correct, fase2_percentage_correct, fase3_percentage_correct]
-percentage_incorrect = [100-fase1_percentage_correct, 100-fase2_percentage_correct, 100-fase3_percentage_correct]
+    percentage_correct = [fase1_percentage_correct, fase2_percentage_correct, fase3_percentage_correct]
+    percentage_incorrect = [100-fase1_percentage_correct, 100-fase2_percentage_correct, 100-fase3_percentage_correct]
 
-x = range(len(labels))
-plt.figure(figsize=(10, 6))
-plt.bar(x, percentage_correct, width=0.4, label='Correct Predictions')
-plt.bar(x, percentage_incorrect, width=0.4, label='Incorrect Predictions', bottom=percentage_correct)
-plt.xlabel('Phase')
-plt.ylabel('Percentage')
-plt.title('Correct and Incorrect Predictions by phases')
-plt.xticks(x, labels)
-plt.legend()
-plt.tight_layout()
-plt.show()
+    x = range(len(labels))
+    #plt.ion()
+    plt.subplot(1,2,1)
+    #plt.figure(figsize=(10, 6))
+    plt.bar(x, percentage_correct, width=0.4, label='Correct Predictions')
+    plt.bar(x, percentage_incorrect, width=0.4, label='Incorrect Predictions', bottom=percentage_correct)
+    plt.xlabel('Phase')
+    plt.ylabel('Percentage')
+    plt.title('Percentage graph by phases')
+    plt.xticks(x, labels)
+    plt.legend()
+    plt.tight_layout()
+
+# ============================================
 
 
+#Knn_scatter(unripe_features, 'b')
 
 
+# Plot scatter for KNN
+# unripe_features, semi_ripe_features, ripe_features
+if KNN_SCATTER:
+    colors=['b','c','g','k,','m','r','w','y']
+    length = max(len(unripe_features), len(ripe_features), len(semi_ripe_features))
+    x = [None] * length
+    y = [None] * length
+    for i in range(len(labels)):
+        for j in range(length):
+            if i == 0:
+                test1_outcome = unripe_features[1][j]*100
+                test2_outcome = unripe_features[2][j]
+                x[j] = test1_outcome
+                y[j] = test2_outcome
+                color = 'b'
+            if i == 1:
+                test1_outcome = ripe_features[1][j]*100
+                test2_outcome = ripe_features[2][j]
+                x[j] = test1_outcome
+                y[j] = test2_outcome
+                color = 'r'
+            if i == 2:
+                test1_outcome = semi_ripe_features[1][j]*100
+                test2_outcome = semi_ripe_features[2][j]
+                x[j] = test1_outcome
+                y[j] = test2_outcome
+                color = 'g'
+            #print(test1_outcome, test2_outcome)
+            #plt.scatter (unripe_features[1][i],unripe_features[2][i],c='b')
+        plt.scatter (x,y,c=color, label=f"phase {i+1}")
+        plt.xlabel("outcome 1, brown percentage")
+        plt.ylabel("outcome 2, white canny pixel")
+
+    #plt.grid(color='gray', linestyle='-', linewidth=1)
+    plt.grid(True)
+    plt.legend()
+    plt.show()
 
 
 # ============================================
 # Plot n for KNN
 # Define a range of n_neighbors values to test
-n_neighbors_values = range(1, 21)  # Vary from 1 to 20
-# Initialize lists to store accuracy values
-accuracy_values = []
+if KNN_NEIGHBOR_GRAPH:
 
-# Loop through different n_neighbors values and compute accuracy
-for n_neighbors in n_neighbors_values:
-    knn_classifier = KNeighborsClassifier(n_neighbors=n_neighbors)
-    knn_classifier.fit(X_train, y_train)
-    y_pred = knn_classifier.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred)
-    accuracy_values.append(accuracy)
+    n_neighbors_values = range(1, 21)  # Vary from 1 to 20
+    # Initialize lists to store accuracy values
+    accuracy_values = []
 
-# Create a plot to analyze the impact of n_neighbors on accuracy
-plt.figure(figsize=(10, 6))
-plt.plot(n_neighbors_values, accuracy_values, marker='o', linestyle='-', color='b')
-plt.title('KNN Classifier Accuracy vs. n_neighbors')
-plt.xlabel('n_neighbors')
-plt.ylabel('Accuracy')
-plt.grid(True)
-plt.xticks(n_neighbors_values)
-plt.show()
+    # Loop through different n_neighbors values and compute accuracy
+    for n_neighbors in n_neighbors_values:
+        knn_classifier = KNeighborsClassifier(n_neighbors=n_neighbors)
+        knn_classifier.fit(X_train, y_train)
+        y_pred = knn_classifier.predict(X_test)
+        accuracy = accuracy_score(y_test, y_pred)
+        accuracy_values.append(accuracy)
 
+    # Create a plot to analyze the impact of n_neighbors on accuracy
+    plt.figure(figsize=(10, 6))
+    plt.plot(n_neighbors_values, accuracy_values, marker='o', linestyle='-', color='b')
+    plt.title('KNN Classifier Accuracy vs. n_neighbors')
+    plt.xlabel('n_neighbors')
+    plt.ylabel('Accuracy')
+    plt.grid(True)
+    plt.xticks(n_neighbors_values)
+    plt.show()
+"""
+# ============================================
+# Plot scatter for KNN
+# unripe_features, semi_ripe_features, ripe_features
+if KNN_SCATTER:
+    colors=['b','c','g','k,','m','r','w','y']
+    for i in range(len(semi_ripe_features)):
+        test1_outcome = semi_ripe_features[1][i]*100
+        test2_outcome = semi_ripe_features[2][i]
+
+        print(test1_outcome, test2_outcome)
+        #plt.scatter (unripe_features[1][i],unripe_features[2][i],c='b')
+        plt.scatter (test1_outcome,test2_outcome,c='b')
+        plt.xlabel("outcome 1, brown percentage")
+        plt.ylabel("outcome 2, white canny pixel")
+    plt.grid(color='gray', linestyle='-', linewidth=1)
+    plt.show()
+    for i in labels:
+        print (i,colors[(i)])
+"""
