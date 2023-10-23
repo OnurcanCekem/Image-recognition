@@ -2,7 +2,7 @@
 Created on Mon Sep 25 12:15:50 2023
 
 @author: onurc
-Version: V0.5
+Version: V0.6
 """
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import train_test_split
@@ -27,6 +27,41 @@ def compute_and_normalize_histogram(image, num_bins, hist_range):
     normalized_hist = hist / hist.sum()
     return normalized_hist
 
+# input: image
+# return: total pixels from the highest contour
+def get_contour(image):
+    correct_banana = 0
+    fake_banana = 0
+    max_contour = 0
+    percentage_area = 0.08 # How much % of the image should be the banana (1.00 is 100%)
+    area = image.shape[0]*image.shape[1]*percentage_area # Amount of pixels required for area to identify banana
+
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    _, binary_image = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
+
+    contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    for contour in contours:
+        # Ignore small contours
+        if cv2.contourArea(contour) < area:
+            continue
+
+        current_contour = cv2.contourArea(contour)
+        if current_contour > max_contour:
+            max_contour = current_contour
+            x, y, w, h = cv2.boundingRect(contour)
+
+        # THIS DOES NOTHING AT THE MOMENT
+        # Check ratio , if rectangle it's likely a banana (ratio is roughly 2:1 but depends on image dimensions)
+        if (w*1.2 < h) or (h*1.2 < w): # If banana is found (condition is met)
+            correct_banana +=1
+        else:
+            fake_banana +=1
+
+    #print(w+x,h+y)
+    return max_contour
+    #print(image.shape[0], image.shape[1])
+           
+
 # Function to count the percentage of brown pixels in an image
 def compute_brown_percentage(image):
     # Define a threshold for brown color (adjust as needed)
@@ -41,7 +76,8 @@ def compute_brown_percentage(image):
     # Create a mask to select brown pixels
     brown_mask = cv2.inRange(hsv_image, lower_brown, upper_brown)
     # Calculate the percentage of brown pixels
-    total_pixels = image.shape[0] * image.shape[1]
+    max_contour = get_contour(image)
+    total_pixels = max_contour
     brown_pixels = np.count_nonzero(brown_mask)
     brown_percentage = (brown_pixels / total_pixels)
 
@@ -56,7 +92,8 @@ def compute_white_percentage_canny(image):
     edges = cv2.Canny(gray_image, 100, 200)
 
     # Calculate the percentage of white pixels in the Canny edge image
-    total_pixels = edges.shape[0] * edges.shape[1]
+    max_contour = get_contour(image)
+    total_pixels = max_contour
     white_pixels = np.count_nonzero(edges)
     white_percentage = (white_pixels / total_pixels) * 100
 
@@ -135,7 +172,6 @@ def load_and_preprocess_images(folder_path, label, num_bins, hist_range):
             image_path = os.path.join(folder_path, filename)
             image = cv2.imread(image_path)
             #image = preprocess_image(image_path)
-
             combined_features = generate_combined_features(image)
             features.append(combined_features)
             labels.append(label)
@@ -185,7 +221,7 @@ def Single_knn_scatter(feature_vector, color):
     for i in labels:
         print (i,colors[(i)])
 
-    
+
 
 # Define paths to your dataset folders for each ripeness phase
 fase1_path = 'Banaanfase1'
@@ -211,7 +247,7 @@ X = unripe_features + semi_ripe_features + ripe_features
 Y = unripe_labels + semi_ripe_labels + ripe_labels
 #X = unripe_features + semi_ripe_features + ripe_features + over_ripe_features
 #Y = unripe_labels + semi_ripe_labels + ripe_labels + over_ripe_labels
-print(unripe_features)
+#print(unripe_features)
 # Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.20, random_state=42)
 
@@ -232,8 +268,12 @@ print(f'Accuracy: {accuracy * 100:.2f}%')
 # ============================================
 # Predict individual image
 image = cv2.imread('Banaanfase3\Banaan3_41.jpg') # read image
-combined_features_image = generate_combined_features(image)
-print("Image results: ", combined_features_image[0]*100, combined_features_image[1])
+image_path = 'Banaanfase3\Banaan3_41.jpg' # read image
+processed_image = preprocess_image(image_path)
+get_contour(processed_image)
+
+#combined_features_image = generate_combined_features(image)
+#print("Image results: ", combined_features_image[0]*100, combined_features_image[1])
 predicted_ripeness = predict_ripeness(image, knn_classifier, num_bins, hist_range) # Predict the ripeness phase of the individual image
 print(f'Predicted Ripeness: {predicted_ripeness}') # Print the predicted ripeness phase (1, 2, 3, or 4 for unripe, semi-ripe, ripe, or over-ripe)
 
@@ -249,8 +289,7 @@ if PERCENTAGE_GRAPH:
 
     x = range(len(labels))
     #plt.ion()
-    plt.subplot(1,2,1)
-    #plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(10, 6))
     plt.bar(x, percentage_correct, width=0.4, label='Correct Predictions')
     plt.bar(x, percentage_incorrect, width=0.4, label='Incorrect Predictions', bottom=percentage_correct)
     plt.xlabel('Phase')
@@ -259,6 +298,7 @@ if PERCENTAGE_GRAPH:
     plt.xticks(x, labels)
     plt.legend()
     plt.tight_layout()
+    plt.show()
 
 # ============================================
 
@@ -305,7 +345,6 @@ if KNN_SCATTER:
     plt.grid(True)
     plt.legend()
     plt.show()
-
 
 # ============================================
 # Plot n for KNN
