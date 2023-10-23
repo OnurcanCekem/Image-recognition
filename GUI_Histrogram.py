@@ -2,7 +2,7 @@
 Created on Mon Oct 02 10:22:39 2023
 
 @author: onurc
-Version: V0.6
+Version: V0.7
 Description: 
 """
 import tkinter as tk
@@ -12,11 +12,13 @@ import os
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+#import Predictknn
 
 global image_index
 global image_global
 image_index = 0
 global mean_image
+global dominant_frequency
 
 test1_outcome=[]
 test2_outcome=[]
@@ -58,7 +60,6 @@ def load_image(index):
     display_unpreprocessed_histogram(image_global, index)
     preprocessed_image = preprocess_image(image_path)
     display_rgb_histogram(preprocessed_image, index) # Display the RGB histogram of the current image
-    
     print("Image path: ",image_path)
 
 # Function to load and display a specific image, manually
@@ -71,6 +72,7 @@ def select_image_manually():
     img = Image.open(image_path)
     img.thumbnail((400, 400))  # Resize the image if needed
     photo = ImageTk.PhotoImage(img)
+    
 
     # Update the label with the new image
     image_label.config(image=photo)
@@ -82,8 +84,17 @@ def select_image_manually():
     preprocessed_image = preprocess_image(image_path)
     display_rgb_histogram(preprocessed_image) # Display the RGB histogram of the current image
     
+    if True:
+        file_name = os.path.basename(image_path)
+        selected_ripeness = file_name[6]
+        selected_ripeness_label.config(text = f"Selected ripeness: {selected_ripeness}") #shows as text in the window
+        #print("Selected ripeness: ", selected_ripeness)
+        #print(os.path.splitext(file_name)[0])
+    else:
+        phase = image_path
+    
+    #print("Image path: ",image_path)
 
-    print("Image path: ",image_path)
 
     #image = preprocess_image(image_path)
     # Display the RGB histogram of the current image
@@ -102,9 +113,8 @@ def preprocess_image(image_path=0):
     
     # HSV 
     hsv_image = cv2.cvtColor(image_bilateralblur, cv2.COLOR_BGR2HSV)
-    #h,s,v = cv2.split(hsv_image)
 
-    # define thresholds
+    # Define thresholds
     lower_yellow = np.array([15, 50, 70])  # lower threshold for yellow (example: [10, 50, 70])
     upper_yellow = np.array([40, 255, 255])  # upper threshold for yellow (example:  [30, 255, 255])
     lower_brown = np.array([0, 70, 0])  # lower threshold for brown (example: [10, 100, 20])
@@ -119,29 +129,27 @@ def preprocess_image(image_path=0):
     brown_mask = cv2.inRange(hsv_image, lower_brown, upper_brown) # Create mask
     segmented_image_brown = cv2.bitwise_and(image, image, mask=brown_mask) # Apply brown mask on original image
     binary_image_brown = cv2.bitwise_and(binary_image_brown, binary_image_brown, mask=brown_mask) # Apply mask on binary image
-    
+
     # Combine yellow and brown
-    banana_color_image = cv2.add(segmented_image_yellow, segmented_image_brown)
-    binary_image_combined = cv2.add(binary_image_yellow, binary_image_brown)
-    
-    # Dilate
+    banana_mask = cv2.add(binary_image_yellow, binary_image_brown)
     kernel = np.ones([3,3])
-    dilated_binary_image = cv2.dilate(banana_color_image,kernel,1)
-    #cv2.imshow("Title ",banana_color_image)
-    return dilated_binary_image
+    banana_mask_dilate = cv2.dilate(banana_mask,kernel,1)
+    preprocessed_banana = cv2.bitwise_and(image, image, mask=banana_mask_dilate)
+
+    return preprocessed_banana
 
 # Function to display the RGB histogram of an image
 def display_rgb_histogram(image, index=0):
     #plt.ion()
     b, g, r = cv2.split(image)
     
-    plt.subplot(1,2,2)
+    plt.subplot(2,2,2)
     
     # Calculate the histograms for each channel
-    hist_b = cv2.calcHist([b], [0], None, [256], [1, 256])
-    hist_g = cv2.calcHist([g], [0], None, [256], [1, 256])
-    hist_r = cv2.calcHist([r], [0], None, [256], [1, 256])
-    
+    hist_b = cv2.calcHist([b], [0], None, [256], [1, 255])
+    hist_g = cv2.calcHist([g], [0], None, [256], [1, 255])
+    hist_r = cv2.calcHist([r], [0], None, [256], [1, 255])
+
     # Create a Matplotlib figure for the RGB histogram
 
     plt.title(f'Preprocessed RGB #{index}')
@@ -156,31 +164,23 @@ def display_rgb_histogram(image, index=0):
     #plt.plot(hist_r, color='r', label='Red')
     #plt.title(title)
     # Add a legend to distinguish the channels
-    plt.legend()
-
-    # Display the RGB histogram
     plt.show()
-
+    plt.legend()
     # Find the dominant color and its frequency
-    #dominant_color = np.unravel_index(hist.argmax(), hist.shape)
-    #dominant_frequency = hist[dominant_color]
-    # Convert dominant_color to BGR format (OpenCV)
-    #dominant_color_bgr = (dominant_color[2], dominant_color[1], dominant_color[0])
 
-    # Calculate the mean of the RGB histogram
-    #total_pixels = np.sum(hist)
-    #mean_rgb = [np.sum(hist[:, :, i] * np.arange(256)) / total_pixels for i in range(3)]
-    #print("Dominant Color (RGB):", dominant_color)
-    #print("Dominant Color (BGR):", dominant_color_bgr)
-    #print("Dominant Frequency:", dominant_frequency)
-    #print("Mean RGB:", mean_rgb)
+    hist = cv2.calcHist([image], [0, 1, 2], None, [256, 256, 256], [1, 255, 1, 255, 1, 255])
+    dominant_color = np.unravel_index(hist.argmax(), hist.shape)
+    dominant_frequency = hist[dominant_color]
+    print("Dominant Color (RGB):", dominant_color)
+    print("Dominant Frequency:", dominant_frequency)
+    dominant_frequency_label.config(text = f"Dominant frequency image: {dominant_frequency}") #shows as text in the window
 
 def display_unpreprocessed_histogram(image, index=0):    
     plt.clf()
     plt.ion()
     b, g, r = cv2.split(image)
     
-    plt.subplot(1,2,1)
+    plt.subplot(2,2,1)
     
     # Calculate the histograms for each channel
     hist_b = cv2.calcHist([b], [0], None, [256], [1, 256])
@@ -203,6 +203,7 @@ def display_unpreprocessed_histogram(image, index=0):
     # Add a legend to distinguish the channels
     plt.legend()
     plt.show()
+
 
 # Function to detect yellow pixels
 def detect_yellow():
@@ -256,6 +257,7 @@ def browse_folder():
     image_index = -1  # Start from the first image (index 0) when a new folder is selected
     load_next_image()
 
+# Function to sort folder locations for buttons
 def select_phase(index):
     #cv2.destroyAllWindows() 
     #plt.clf()
@@ -269,6 +271,8 @@ def select_phase(index):
         folder_path = 'Banaanfase3'
     elif index == 4:
         folder_path = 'Banaanfase4'
+    
+    selected_ripeness_label.config(text = f"Selected ripeness: {index}") #shows as text in the window
 
     image_paths = [os.path.join(folder_path, filename) for filename in os.listdir(folder_path) if filename.endswith('.jpg')]
     image_index = -1  # Start from the first image (index 0) when a new folder is selected
@@ -278,7 +282,7 @@ def test1_mean_img():
     global image_global
     global mean_image
     mean_image = np.mean(image_global)
-    print("Mean Image: ",mean_image)
+    print("Mean Image: ", mean_image)
     mean_image_label.config(text = f"Mean image: {mean_image}") #shows as text in the window
 
 def detect_escape_key():
@@ -309,7 +313,11 @@ fase2_path = tk.Button(root, bg='green', text="Select phase 2", command=lambda: 
 fase3_path = tk.Button(root, bg='green', text="Select phase 3", command=lambda: select_phase(3))
 fase4_path = tk.Button(root, bg='green', text="Select phase 4", command=lambda: select_phase(4))
 mean_image_label = tk.Label(root, text="Waiting image...") #shows as text in the window
-mean_histogram_label = tk.Label(root, text="Waiting image...") #shows as text in the window
+dominant_frequency_label = tk.Label(root, text="Waiting image...") #shows as text in the window
+selected_ripeness_label = tk.Label(root, text="Waiting image...") #shows as text in the window
+predicted_ripeness_label = tk.Label(root, text="Waiting image...") #shows as text in the window
+test1_outcome_label = tk.Label(root, text="Waiting image...") #shows as text in the window
+test2_outcome_label = tk.Label(root, text="Waiting image...") #shows as text in the window
 
 #mean_label = tk.Label(root, text=f"Mean: {mean_image}") #shows as text in the window
 browse_button.pack(pady=10)
@@ -323,8 +331,12 @@ next_button.pack(side='right', padx=10)
 yellow_button.pack(pady=10)
 brown_button.pack(pady=10)
 close_button.pack(padx=20, pady=10)
-mean_image_label.pack(padx=20, pady=10)
-mean_histogram_label.pack(padx=20, pady=10)
+mean_image_label.pack(padx=0, pady=0)
+dominant_frequency_label.pack(padx=0, pady=0)
+selected_ripeness_label.pack(padx=0, pady=0)
+predicted_ripeness_label.pack(padx=0, pady=0)
+test1_outcome_label.pack(padx=0, pady=0)
+test2_outcome_label.pack(padx=0, pady=0)
 
 # Initialize global variables
 image_paths = []
