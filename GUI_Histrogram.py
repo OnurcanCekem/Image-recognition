@@ -2,7 +2,7 @@
 Created on Mon Oct 02 10:22:39 2023
 
 @author: onurc
-Version: V0.8
+Version: V0.9
 Description: 
 """
 import tkinter as tk
@@ -55,7 +55,7 @@ def load_image(index):
     image_label.config(image=photo)
     image_label.image = photo
 
-    #run the tests
+    # Update labels 
     predicted_ripeness = predict_ripeness(image_global, knn_classifier, num_bins, hist_range) # Predict the ripeness phase of the individual image
     brown_percentage, white_pixel_canny = generate_combined_features(image_global)
     test1_outcome_label.config(text = f"Brown percentage image: {brown_percentage}") #shows as text in the window
@@ -63,12 +63,13 @@ def load_image(index):
     predicted_ripeness_label.config(text = f"Predicted ripeness: {predicted_ripeness}") #shows as text in the window
     print(f'Predicted Ripeness: {predicted_ripeness}') # Print the predicted ripeness phase (1, 2, 3, or 4 for unripe, semi-ripe, ripe, or over-ripe)
 
+    # run the tests
     test1_mean_img()
     display_unpreprocessed_histogram(image_global, index)
-    
     preprocessed_image = preprocess_image(image_path)
     display_rgb_histogram(preprocessed_image, index) # Display the RGB histogram of the current image
     print("Image path: ",image_path)
+    # Select ripeness should be in this line, but it's already done in select_phase() function
 
 # Function to load and display a specific image, manually
 def select_image_manually():
@@ -87,7 +88,7 @@ def select_image_manually():
     image_label.config(image=photo)
     image_label.image = photo
 
-    #run the tests
+    # Update labels 
     predicted_ripeness = predict_ripeness(image_global, knn_classifier, num_bins, hist_range) # Predict the ripeness phase of the individual image
     brown_percentage, white_pixel_canny = generate_combined_features(image_global)
     test1_outcome_label.config(text = f"Brown percentage image: {brown_percentage}") #shows as text in the window
@@ -95,12 +96,14 @@ def select_image_manually():
     predicted_ripeness_label.config(text = f"Predicted ripeness: {predicted_ripeness}") #shows as text in the window
 
     print(f'Predicted Ripeness: {predicted_ripeness}') # Print the predicted ripeness phase (1, 2, 3, or 4 for unripe, semi-ripe, ripe, or over-ripe)
-
+    
+    # run the tests
     test1_mean_img()
     display_unpreprocessed_histogram(image_global)
     preprocessed_image = preprocess_image(image_path)
     display_rgb_histogram(preprocessed_image) # Display the RGB histogram of the current image
     
+    # Select ripeness
     file_name = os.path.basename(image_path)
     selected_ripeness = file_name[6]
     selected_ripeness_label.config(text = f"Selected ripeness: {selected_ripeness}") #shows as text in the window
@@ -115,12 +118,12 @@ def select_image_manually():
     # Display the RGB histogram of the current image
 
 # Function to load and preprocess images with multiple feature extraction methods
-def preprocess_image(image_path=0):
+def preprocess_image(image_path=0, image=0):
     global image_global
     if image_path != 0:
         image = cv2.imread(image_path)
     else:
-        image = image_global
+        image = image
     image_bilateralblur = cv2.bilateralFilter(image,9,75,75)
     image_grayscaledbilateralblur = cv2.cvtColor(image_bilateralblur, cv2.COLOR_BGR2GRAY)
     _, binary_image_yellow = cv2.threshold(image_grayscaledbilateralblur, 100, 255, cv2.THRESH_BINARY)
@@ -137,12 +140,10 @@ def preprocess_image(image_path=0):
     
     # Yellow mask (Filter with color range)
     yellow_mask = cv2.inRange(hsv_image, lower_yellow, upper_yellow) # Create mask
-    segmented_image_yellow = cv2.bitwise_and(image, image, mask=yellow_mask) # Apply yellow mask on original image
     binary_image_yellow = cv2.bitwise_and(binary_image_yellow, binary_image_yellow, mask=yellow_mask) # Apply mask on binary image
 
     # Brown mask (Filter with color range)
     brown_mask = cv2.inRange(hsv_image, lower_brown, upper_brown) # Create mask
-    segmented_image_brown = cv2.bitwise_and(image, image, mask=brown_mask) # Apply brown mask on original image
     binary_image_brown = cv2.bitwise_and(binary_image_brown, binary_image_brown, mask=brown_mask) # Apply mask on binary image
 
     # Combine yellow and brown
@@ -150,7 +151,6 @@ def preprocess_image(image_path=0):
     kernel = np.ones([3,3])
     banana_mask_dilate = cv2.dilate(banana_mask,kernel,1)
     preprocessed_banana = cv2.bitwise_and(image, image, mask=banana_mask_dilate)
-
     return preprocessed_banana
 
 # Function to display the RGB histogram of an image
@@ -190,6 +190,7 @@ def display_rgb_histogram(image, index=0):
     #print("Dominant Frequency:", dominant_frequency)
     dominant_frequency_label.config(text = f"Dominant frequency image: {dominant_frequency}") #shows as text in the window
 
+# Function to display the RGB histogram of an unpreprocessed image
 def display_unpreprocessed_histogram(image, index=0):    
     plt.clf()
     plt.ion()
@@ -264,19 +265,46 @@ def detect_brown():
         #cv2.waitKey(0)
         #cv2.destroyAllWindows()
 
-# Function to detect brown pixels
+# Function to detect canny
 def detect_canny():
 
     global image_global
     img = image_global
-
+    img = preprocess_image(image=img)
     # Convert the image to grayscale
     gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     # Apply Canny edge detection
-    edges = cv2.Canny(gray_image, 100, 200)
+    threshold1 = 42
+    threshold2 = 104
+    edges = cv2.Canny(gray_image, 42, 104)
 
     cv2.imshow("Canny edge",edges)
+
+# Function to detect contour of image
+def detect_contour():
+    global image_global
+    image = preprocess_image(image=image_global)
+    percentage_area = 0.08 # How much % of the image should be the banana (1.00 is 100%)
+    area = image.shape[0]*image.shape[1]*percentage_area # Amount of pixels required for area to identify banana
+
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    _, binary_image = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
+    contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    for contour in contours:
+        # Ignore small contours
+        if cv2.contourArea(contour) < area:
+            continue
+        x, y, w, h = cv2.boundingRect(contour)
+        #cv2.drawContours(contour_image, [contour], 0, 255, thickness=cv2.FILLED)
+
+    x2 = x+w
+    y2 = y+h
+    contoured_image = image[y:y2,x:x2]
+    cv2.imshow("Contoured image",contoured_image)
+
+
 
 # Function to browse and select a folder of images
 def browse_folder():
@@ -307,6 +335,7 @@ def select_phase(index):
     image_index = -1  # Start from the first image (index 0) when a new folder is selected
     load_next_image()
 
+# Test 1: mean of image
 def test1_mean_img():
     global image_global
     global mean_image
@@ -314,11 +343,54 @@ def test1_mean_img():
     #print("Mean Image: ", mean_image)
     mean_image_label.config(text = f"Mean image: {mean_image}") #shows as text in the window
 
+# Currently unused function
+# Function that checks escape key press
 def detect_escape_key():
     while(True):
         c = cv2.waitKey(0)
         if c == 27 & 0xFF:
             cv2.destroyAllWindows()
+
+# Function to generate scatter of all 3 phases
+def knn_scatter():
+    colors=['b','c','g','k,','m','r','w','y']
+    length = max(len(unripe_features), len(ripe_features), len(semi_ripe_features))
+    x = [None] * length
+    y = [None] * length
+    print(length)
+    plt.figure()
+    for i in range(len(labels)):
+        if i == 0:
+            length_label = len(unripe_features)
+        if i == 1:
+            length_label = len(ripe_features)
+        if i == 2:
+            length_label = len(semi_ripe_features)
+        for j in range(length_label):
+            #print(i,j)
+            if i == 0:
+                x[j] = unripe_features[j][0] # method 1, brown percentage
+                y[j] = unripe_features[j][1] # method 2, white canny
+                color = 'b'
+            if i == 1:
+                x[j] = ripe_features[j][0]
+                y[j] = ripe_features[j][1]
+                color = 'r'
+            if i == 2:
+                x[j] = semi_ripe_features[j][0]
+                y[j] = semi_ripe_features[j][1]
+                color = 'g'
+            #print(test1_outcome, test2_outcome)
+            #plt.scatter (unripe_features[1][i],unripe_features[2][i],c='b')
+        plt.scatter (x,y,c=color, label=f"phase {i+1}")
+        plt.xlabel("outcome 1, brown percentage")
+        plt.ylabel("outcome 2, white canny pixel")
+
+    #plt.grid(color='gray', linestyle='-', linewidth=1)
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+
 
 # Create the main application window
 root = tk.Tk()
@@ -337,11 +409,13 @@ close_button = tk.Button(root, bg='red', text="Close Program", command=close_pro
 yellow_button = tk.Button(root, bg='yellow', text="Detect Yellow", command=detect_yellow)
 brown_button = tk.Button(root, bg='brown', text="Detect Brown", command=detect_brown)
 canny_button = tk.Button(root, bg='gray', text="Detect canny", command=detect_canny)
+contour_button = tk.Button(root, bg='gray', text="Detect contour", command=detect_contour)
 individual_image = tk.Button(root, bg='green', text="Select image", command=select_image_manually)
 fase1_path = tk.Button(root, bg='green', text="Select phase 1", command=lambda: select_phase(1))
 fase2_path = tk.Button(root, bg='green', text="Select phase 2", command=lambda: select_phase(2))
 fase3_path = tk.Button(root, bg='green', text="Select phase 3", command=lambda: select_phase(3))
 fase4_path = tk.Button(root, bg='green', text="Select phase 4", command=lambda: select_phase(4))
+test_scatter = tk.Button(root, bg='orange', text="Show KNN Scatter", command=knn_scatter)
 mean_image_label = tk.Label(root, text="Waiting image...") #shows as text in the window
 dominant_frequency_label = tk.Label(root, text="Waiting image...") #shows as text in the window
 selected_ripeness_label = tk.Label(root, text="Waiting image...") #shows as text in the window
@@ -361,7 +435,9 @@ next_button.pack(side='right', padx=10)
 yellow_button.pack(pady=0)
 brown_button.pack(pady=0)
 canny_button.pack(pady=0)
+contour_button.pack(pady=0)
 close_button.pack(padx=20, pady=10)
+test_scatter.pack(padx=20, pady=10)
 mean_image_label.pack(padx=0, pady=0)
 dominant_frequency_label.pack(padx=0, pady=0)
 selected_ripeness_label.pack(padx=0, pady=0)
@@ -374,8 +450,8 @@ image_paths = []
 image_index = -1
 
 
-# ==================================================================================
-# ==================================================================================
+# ======================================================================================================
+# ======================================================================================================
 # Predictknn.py code
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import train_test_split
@@ -387,6 +463,8 @@ HISTOGRAM_RGB = True # Method 3: Compute and normalize histogram feature
 
 # Function to count the percentage of brown pixels in an image
 def test2_compute_brown_percentage(image):
+    image = get_contour(image)
+
     # Define a threshold for brown color (adjust as needed)
     #lower_brown = np.array([10, 60, 20], dtype=np.uint8)
     #upper_brown = np.array([60, 160, 90], dtype=np.uint8)
@@ -399,7 +477,8 @@ def test2_compute_brown_percentage(image):
     # Create a mask to select brown pixels
     brown_mask = cv2.inRange(hsv_image, lower_brown, upper_brown)
     # Calculate the percentage of brown pixels
-    max_contour = get_contour(image)
+
+    max_contour = image.shape[0] * image.shape[1]
     total_pixels = max_contour
     brown_pixels = np.count_nonzero(brown_mask)
     brown_percentage = (brown_pixels / total_pixels)
@@ -408,23 +487,28 @@ def test2_compute_brown_percentage(image):
 
 # Function to calculate the amount of white pixels in a Canny edge image
 def test3_compute_white_pixel_canny(image):
+    image = get_contour(image)
+
     # Convert the image to grayscale
     gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     # Apply Canny edge detection
-    edges = cv2.Canny(gray_image, 100, 200)
+    threshold1 = 42
+    threshold2 = 104
+    edges = cv2.Canny(gray_image, threshold1, threshold2)
 
     # Calculate the percentage of white pixels in the Canny edge image
-    max_contour = get_contour(image)
+    max_contour = image.shape[0] * image.shape[1]
     total_pixels = max_contour
     white_pixels = np.count_nonzero(edges)
     white_percentage = (white_pixels / total_pixels) * 100
 
     return white_pixels
 
+# Unused function
 # input: image
-# return: total pixels from the highest contour
-def get_contour(image):
+# return: total pixels (area) from the highest contour
+def get_banana_area(image):
     correct_banana = 0
     fake_banana = 0
     max_contour = 0
@@ -455,6 +539,37 @@ def get_contour(image):
     #print(w+x,h+y)
     return max_contour
     #print(image.shape[0], image.shape[1])
+
+# Function to get contour of image
+# Returns contoured image
+def get_contour(image):
+    image = preprocess_image(image=image)
+    max_contour_area = 0
+    percentage_area = 0.08 # How much % of the image should be the banana (1.00 is 100%)
+    area = image.shape[0]*image.shape[1]*percentage_area # Amount of pixels required for area to identify banana
+
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    _, binary_image = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
+    contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    for contour in contours:
+        # Ignore small contours
+        if cv2.contourArea(contour) < area:
+            continue
+
+        x, y, w, h = cv2.boundingRect(contour)
+
+        if (w*1.2 < h) or (h*1.2 < w): # If banana is found (rectangle condition is met)
+            current_contour_area = cv2.contourArea(contour)
+            if current_contour_area > max_contour_area:
+                max_contour_area = current_contour_area
+
+    x2 = x+w
+    y2 = y+h
+    contoured_image = image[y:y2,x:x2]
+
+    return contoured_image, max_contour_area
+
 
 def generate_combined_features(image):
     combined_features = [None] * 2
