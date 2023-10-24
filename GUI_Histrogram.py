@@ -2,7 +2,7 @@
 Created on Mon Oct 02 10:22:39 2023
 
 @author: onurc
-Version: V0.9
+Version: V0.10
 Description: 
 """
 import tkinter as tk
@@ -119,11 +119,12 @@ def select_image_manually():
 
 # Function to load and preprocess images with multiple feature extraction methods
 def preprocess_image(image_path=0, image=0):
-    global image_global
     if image_path != 0:
         image = cv2.imread(image_path)
     else:
         image = image
+    
+    # blur and convert to binary
     image_bilateralblur = cv2.bilateralFilter(image,9,75,75)
     image_grayscaledbilateralblur = cv2.cvtColor(image_bilateralblur, cv2.COLOR_BGR2GRAY)
     _, binary_image_yellow = cv2.threshold(image_grayscaledbilateralblur, 100, 255, cv2.THRESH_BINARY)
@@ -478,8 +479,8 @@ def test2_compute_brown_percentage(image):
     brown_mask = cv2.inRange(hsv_image, lower_brown, upper_brown)
     # Calculate the percentage of brown pixels
 
-    max_contour = image.shape[0] * image.shape[1]
-    total_pixels = max_contour
+    area = image.shape[0] * image.shape[1]
+    total_pixels = area
     brown_pixels = np.count_nonzero(brown_mask)
     brown_percentage = (brown_pixels / total_pixels)
 
@@ -498,8 +499,8 @@ def test3_compute_white_pixel_canny(image):
     edges = cv2.Canny(gray_image, threshold1, threshold2)
 
     # Calculate the percentage of white pixels in the Canny edge image
-    max_contour = image.shape[0] * image.shape[1]
-    total_pixels = max_contour
+    area = image.shape[0] * image.shape[1]
+    total_pixels = area
     white_pixels = np.count_nonzero(edges)
     white_percentage = (white_pixels / total_pixels) * 100
 
@@ -568,7 +569,7 @@ def get_contour(image):
     y2 = y+h
     contoured_image = image[y:y2,x:x2]
 
-    return contoured_image, max_contour_area
+    return contoured_image
 
 
 def generate_combined_features(image):
