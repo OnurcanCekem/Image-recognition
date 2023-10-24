@@ -2,7 +2,7 @@
 Created on Mon Sep 25 12:15:50 2023
 
 @author: onurc
-Version: V0.6
+Version: V0.7
 """
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import train_test_split
@@ -13,71 +13,38 @@ import os
 import numpy as np
 
 # Methods
-HISTOGRAM_RGB = True # Method 1: Compute and normalize histogram feature
-BROWN_PERCENTAGE = True # Method 2: Compute brown percentage feature
-CANNY_WHITE_PIXEL = True # Method 3: Compute white percentage in Canny edge feature
+BROWN_PERCENTAGE = True # Method 1: Compute brown percentage feature
+CANNY_WHITE_PIXEL = True # Method 2: Compute white percentage in Canny edge feature
+HISTOGRAM_RGB = True # Method 3: Compute and normalize histogram feature
 
-PERCENTAGE_GRAPH = False
+PERCENTAGE_GRAPH = True
 KNN_SCATTER = True
-KNN_NEIGHBOR_GRAPH = False
+KNN_NEIGHBOR_GRAPH = True
 
 # Function to compute and normalize histograms for grayscale images
 def compute_and_normalize_histogram(image, num_bins, hist_range):
     hist, bins = np.histogram(image, bins=num_bins, range=hist_range)
     normalized_hist = hist / hist.sum()
     return normalized_hist
-
-# input: image
-# return: total pixels from the highest contour
-def get_contour(image):
-    correct_banana = 0
-    fake_banana = 0
-    max_contour = 0
-    percentage_area = 0.08 # How much % of the image should be the banana (1.00 is 100%)
-    area = image.shape[0]*image.shape[1]*percentage_area # Amount of pixels required for area to identify banana
-
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    _, binary_image = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
-
-    contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    for contour in contours:
-        # Ignore small contours
-        if cv2.contourArea(contour) < area:
-            continue
-
-        current_contour = cv2.contourArea(contour)
-        if current_contour > max_contour:
-            max_contour = current_contour
-            x, y, w, h = cv2.boundingRect(contour)
-
-        # THIS DOES NOTHING AT THE MOMENT
-        # Check ratio , if rectangle it's likely a banana (ratio is roughly 2:1 but depends on image dimensions)
-        if (w*1.2 < h) or (h*1.2 < w): # If banana is found (condition is met)
-            correct_banana +=1
-        else:
-            fake_banana +=1
-
-    #print(w+x,h+y)
-    return max_contour
-    #print(image.shape[0], image.shape[1])
            
 
 # Function to count the percentage of brown pixels in an image
 def compute_brown_percentage(image):
+    image = get_contour(image)
     # Define a threshold for brown color (adjust as needed)
     #lower_brown = np.array([10, 60, 20], dtype=np.uint8)
     #upper_brown = np.array([60, 160, 90], dtype=np.uint8)
     lower_brown = np.array([0, 70, 0], dtype=np.uint8)
     upper_brown = np.array([20, 255, 200], dtype=np.uint8)
-
+    
     # Convert the image to the HSV color space
     hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
     # Create a mask to select brown pixels
     brown_mask = cv2.inRange(hsv_image, lower_brown, upper_brown)
     # Calculate the percentage of brown pixels
-    max_contour = get_contour(image)
-    total_pixels = max_contour
+    area = image.shape[0] * image.shape[1]
+    total_pixels = area
     brown_pixels = np.count_nonzero(brown_mask)
     brown_percentage = (brown_pixels / total_pixels)
 
@@ -85,20 +52,24 @@ def compute_brown_percentage(image):
 
 # Function to calculate the percentage of white pixels in a Canny edge image
 def compute_white_percentage_canny(image):
+    image = get_contour(image)
     # Convert the image to grayscale
     gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     # Apply Canny edge detection
-    edges = cv2.Canny(gray_image, 100, 200)
+    threshold1 = 42
+    threshold2 = 104
+    edges = cv2.Canny(gray_image, threshold1, threshold2)
 
     # Calculate the percentage of white pixels in the Canny edge image
-    max_contour = get_contour(image)
-    total_pixels = max_contour
+    area = image.shape[0] * image.shape[1]
+    total_pixels = area
     white_pixels = np.count_nonzero(edges)
     white_percentage = (white_pixels / total_pixels) * 100
 
     return white_pixels
 
+# Function to generate features extraction methods for knn
 def generate_combined_features(image):
     combined_features = [None] * 2
     # Method 1: Compute and normalize histogram feature
@@ -129,8 +100,14 @@ def generate_combined_features(image):
     #print("combined ",combined_features[1])
     return combined_features
 
-def preprocess_image(image_path=0):
-    image = cv2.imread(image_path)
+# Function to load and preprocess images with multiple feature extraction methods
+def preprocess_image(image_path=0, image=0):
+    if image_path != 0:
+        image = cv2.imread(image_path)
+    else:
+        image = image
+
+    # blur and convert to binary
     image_bilateralblur = cv2.bilateralFilter(image,9,75,75)
     image_grayscaledbilateralblur = cv2.cvtColor(image_bilateralblur, cv2.COLOR_BGR2GRAY)
     _, binary_image_yellow = cv2.threshold(image_grayscaledbilateralblur, 100, 255, cv2.THRESH_BINARY)
@@ -173,6 +150,9 @@ def load_and_preprocess_images(folder_path, label, num_bins, hist_range):
             image = cv2.imread(image_path)
             #image = preprocess_image(image_path)
             combined_features = generate_combined_features(image)
+            # debug
+            #if combined_features[0] < 0.10 and label == 3:
+            #    print(image_path, combined_features)
             features.append(combined_features)
             labels.append(label)
 
@@ -205,6 +185,36 @@ def get_accuracy_percentage(image_paths, label_phase):
     #print(f"wrong: {wrong} and correct: {correct}")
     return (correct /(correct+wrong)*100)
 
+# Function to get contour of image
+# Returns contoured image
+def get_contour(image):
+    image = preprocess_image(image=image)
+    max_contour_area = 0
+    percentage_area = 0.08 # How much % of the image should be the banana (1.00 is 100%)
+    area = image.shape[0]*image.shape[1]*percentage_area # Amount of pixels required for area to identify banana
+
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    _, binary_image = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
+    contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    for contour in contours:
+        # Ignore small contours
+        if cv2.contourArea(contour) < area:
+            continue
+
+        x, y, w, h = cv2.boundingRect(contour)
+
+        if (w*1.2 < h) or (h*1.2 < w): # If banana is found (rectangle condition is met)
+            current_contour_area = cv2.contourArea(contour)
+            if current_contour_area > max_contour_area:
+                max_contour_area = current_contour_area
+
+    x2 = x+w
+    y2 = y+h
+    contoured_image = image[y:y2,x:x2]
+
+    return contoured_image
+
 # Plot scatter for KNN
 def Single_knn_scatter(feature_vector, color):
     for i in range(len(feature_vector)):
@@ -218,8 +228,6 @@ def Single_knn_scatter(feature_vector, color):
         plt.ylabel("outcome 2, white canny pixel")
     plt.grid(color='gray', linestyle='-', linewidth=1)
     plt.show()
-    for i in labels:
-        print (i,colors[(i)])
 
 
 
@@ -262,15 +270,15 @@ y_pred = knn_classifier.predict(X_test)
 
 # Calculate accuracy
 accuracy = accuracy_score(y_test, y_pred)
-print(f'Accuracy: {accuracy * 100:.2f}%')
+print(f'Accuracy at 5 n_neighbors: {accuracy * 100:.2f}%')
 
 
 # ============================================
 # Predict individual image
-image = cv2.imread('Banaanfase3\Banaan3_41.jpg') # read image
-image_path = 'Banaanfase3\Banaan3_41.jpg' # read image
+image_path = 'Banaanfase2\Banaan2_5.jpg' # read image
+image = cv2.imread(image_path) # read image
 processed_image = preprocess_image(image_path)
-get_contour(processed_image)
+#get_contour(processed_image)
 
 #combined_features_image = generate_combined_features(image)
 #print("Image results: ", combined_features_image[0]*100, combined_features_image[1])
@@ -309,7 +317,6 @@ if PERCENTAGE_GRAPH:
 # Plot scatter for KNN
 # unripe_features, semi_ripe_features, ripe_features
 if KNN_SCATTER:
-    colors=['b','c','g','k,','m','r','w','y']
     length = max(len(unripe_features), len(ripe_features), len(semi_ripe_features))
     x = [None] * length
     y = [None] * length
@@ -324,8 +331,8 @@ if KNN_SCATTER:
         for j in range(length_label):
             #print(i,j)
             if i == 0:
-                x[j] = unripe_features[j][0]
-                y[j] = unripe_features[j][1]
+                x[j] = unripe_features[j][0] # method 1, brown percentage
+                y[j] = unripe_features[j][1] # method 2, white canny
                 color = 'b'
             if i == 1:
                 x[j] = ripe_features[j][0]
