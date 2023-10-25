@@ -2,7 +2,7 @@
 Created on Mon Sep 25 12:15:50 2023
 
 @author: onurc
-Version: V0.7
+Version: V0.8
 """
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import train_test_split
@@ -73,10 +73,10 @@ def compute_white_percentage_canny(image):
 def generate_combined_features(image):
     combined_features = [None] * 2
     # Method 1: Compute and normalize histogram feature
-    if HISTOGRAM_RGB:
-        histogram_feature = compute_and_normalize_histogram(image, num_bins, hist_range)
-    else:
-        histogram_feature = []
+    #if HISTOGRAM_RGB:
+    #    histogram_feature = compute_and_normalize_histogram(image, num_bins, hist_range)
+    #else:
+    #    histogram_feature = []
     
     # Method 2: Compute brown percentage feature
     if BROWN_PERCENTAGE:
