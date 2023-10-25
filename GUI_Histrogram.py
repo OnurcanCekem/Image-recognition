@@ -2,7 +2,7 @@
 Created on Mon Oct 02 10:22:39 2023
 
 @author: onurc
-Version: V0.10
+Version: V0.11
 Description: 
 """
 import tkinter as tk
@@ -69,7 +69,12 @@ def load_image(index):
     preprocessed_image = preprocess_image(image_path)
     display_rgb_histogram(preprocessed_image, index) # Display the RGB histogram of the current image
     print("Image path: ",image_path)
-    # Select ripeness should be in this line, but it's already done in select_phase() function
+
+    # Select ripeness is already done in select_phase() function, but this is The rare condition of browse folder 
+    file_name = os.path.basename(image_path)
+    selected_ripeness = file_name[6]
+    selected_ripeness_label.config(text = f"Selected ripeness: {selected_ripeness}") #shows as text in the window
+    
 
 # Function to load and display a specific image, manually
 def select_image_manually():
@@ -83,10 +88,15 @@ def select_image_manually():
     img.thumbnail((400, 400))  # Resize the image if needed
     photo = ImageTk.PhotoImage(img)
     
-
     # Update the label with the new image
     image_label.config(image=photo)
     image_label.image = photo
+
+    # Resize image for demo
+    #print(image_global.shape[0], image_global.shape[1])
+    if image_global.shape[1] > 2000:
+        image_global = cv2.resize(image_global, (1000, 750))
+    #print(image_global.shape[0], image_global.shape[1])
 
     # Update labels 
     predicted_ripeness = predict_ripeness(image_global, knn_classifier, num_bins, hist_range) # Predict the ripeness phase of the individual image
@@ -278,7 +288,7 @@ def detect_canny():
     # Apply Canny edge detection
     threshold1 = 42
     threshold2 = 104
-    edges = cv2.Canny(gray_image, 42, 104)
+    edges = cv2.Canny(gray_image, threshold1, threshold2)
 
     cv2.imshow("Canny edge",edges)
 
@@ -330,7 +340,8 @@ def select_phase(index):
     elif index == 4:
         folder_path = 'Banaanfase4'
     
-    selected_ripeness_label.config(text = f"Selected ripeness: {index}") #shows as text in the window
+    # Disabled, because of browse folder, therefore this has to be load image
+    #selected_ripeness_label.config(text = f"Selected ripeness: {index}") #shows as text in the window
 
     image_paths = [os.path.join(folder_path, filename) for filename in os.listdir(folder_path) if filename.endswith('.jpg')]
     image_index = -1  # Start from the first image (index 0) when a new folder is selected
@@ -596,8 +607,8 @@ def generate_combined_features(image):
 
     # Combine features
     #combined_features = np.concatenate((histogram_feature, [brown_percentage_feature, white_percentage_canny_feature])) # Something goes wrong here
-    combined_features[0] = brown_percentage_feature # Something goes wrong here
-    combined_features[1] = white_percentage_canny_feature # Something goes wrong here
+    combined_features[0] = brown_percentage_feature 
+    combined_features[1] = white_percentage_canny_feature 
 
     #print("combined ",combined_features[1])
     return combined_features
@@ -628,6 +639,22 @@ def load_and_preprocess_images(folder_path, label, num_bins, hist_range):
             labels.append(label)
 
     return features, labels
+
+# Plot scatter for KNN
+def Single_knn_scatter(feature_vector, color):
+    for i in range(len(feature_vector)):
+        print(i)
+        test1_outcome = feature_vector[i][0] # Brown percentage
+        test2_outcome = feature_vector[i][1] # Canny white pixel count
+
+        #print(test1_outcome, test2_outcome)
+        #plt.scatter (unripe_features[1][i],unripe_features[2][i],c='b')
+        plt.scatter(test1_outcome,test2_outcome,c=color)
+        plt.xlabel("outcome 1, brown percentage")
+        plt.ylabel("outcome 2, white canny pixel")
+    plt.grid(color='gray', linestyle='-', linewidth=1)
+    plt.show()
+    
 
 # Define paths to your dataset folders for each ripeness phase
 fase1_path = 'Banaanfase1'
@@ -670,7 +697,11 @@ y_pred = knn_classifier.predict(X_test)
 accuracy = accuracy_score(y_test, y_pred)
 print(f'Accuracy at 5 n_neighbors: {accuracy * 100:.2f}%')
 
+#Single_knn_scatter(unripe_features, 'b')
+#Single_knn_scatter(ripe_features, 'r')
+
 # End of Predictknn.py
 #===============================
 # Start the GUI main loop
+
 root.mainloop()
